@@ -52,3 +52,19 @@ install(DIRECTORY launch/
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
         PATTERN ".svn" EXCLUDE
 )
+
+if (CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest_gtest(astar_navi_test
+    test/astar_navi/test_astar_navi.test
+    test/astar_navi/src/test_astar_navi.cpp
+    src/astar_navi/astar_navi.cpp
+  )
+  add_dependencies(astar_navi_test
+    ${catkin_EXPORTED_TARGETS}
+  )
+  target_link_libraries(astar_navi_test
+    ${catkin_LIBRARIES}
+    astar_search
+  )
+endif()

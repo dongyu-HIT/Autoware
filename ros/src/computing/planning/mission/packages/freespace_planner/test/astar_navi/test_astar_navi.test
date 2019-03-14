@@ -1,0 +1,3 @@
+<launch>
+  <test test-name="test-astar_navi_test" pkg="freespace_planner" type="astar_navi_test" name="astar_navi_test"/>
+</launch>
