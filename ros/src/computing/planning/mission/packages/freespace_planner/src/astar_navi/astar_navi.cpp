@@ -95,49 +95,50 @@ tf::Transform AstarNavi::getTransform(const std::string& from, const std::string
 
 void AstarNavi::run()
 {
-  ros::Rate rate(update_rate_);
-
-  nav_msgs::Path empty_path;
-  empty_path.header.stamp = ros::Time::now();
-  empty_path.header.frame_id = costmap_.header.frame_id;
-
   while (ros::ok())
   {
     ros::spinOnce();
 
     if (!costmap_initialized_ || !current_pose_initialized_ || !goal_pose_initialized_)
     {
-      rate.sleep();
+      ros::Duration(1.0).sleep();
       continue;
     }
 
-    // initialize vector for A* search, this runs only once
-    astar_.initialize(costmap_);
-
-    // update local goal pose
-    goalPoseCallback(goal_pose_global_);
-
-    // execute astar search
-    ros::WallTime start = ros::WallTime::now();
-    bool result = astar_.makePlan(current_pose_local_.pose, goal_pose_local_.pose);
-    ros::WallTime end = ros::WallTime::now();
-
-    ROS_INFO("Astar planning: %f [s]", (end - start).toSec());
-
-    if (result)
-    {
-      ROS_INFO("Found GOAL!");
-      publishWaypoints(astar_.getPath(), waypoints_velocity_);
-    }
-    else
-    {
-      ROS_INFO("Can't find goal...");
-      publishStopWaypoints();
-    }
-
-    astar_.reset();
-    rate.sleep();
+    update();
   }
+}
+
+void AstarNavi::update()
+{
+  static ros::Rate rate(update_rate_);
+
+  // initialize vector for A* search, this runs only once
+  astar_.initialize(costmap_);
+
+  // update local goal pose
+  goalPoseCallback(goal_pose_global_);
+
+  // execute astar search
+  ros::WallTime start = ros::WallTime::now();
+  bool result = astar_.makePlan(current_pose_local_.pose, goal_pose_local_.pose);
+  ros::WallTime end = ros::WallTime::now();
+
+  ROS_INFO("Astar planning: %f [s]", (end - start).toSec());
+
+  if (result)
+  {
+    ROS_INFO("Found GOAL!");
+    publishWaypoints(astar_.getPath(), waypoints_velocity_);
+  }
+  else
+  {
+    ROS_INFO("Can't find goal...");
+    publishStopWaypoints();
+  }
+
+  astar_.reset();
+  rate.sleep();
 }
 
 void AstarNavi::publishWaypoints(const nav_msgs::Path& path, const double& velocity)

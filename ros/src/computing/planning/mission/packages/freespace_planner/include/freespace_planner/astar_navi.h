@@ -34,6 +34,7 @@ public:
   AstarNavi();
   ~AstarNavi();
   void run();
+  void update();
 
 private:
   // ros
