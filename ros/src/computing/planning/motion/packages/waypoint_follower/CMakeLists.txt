@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
         roscpp
         std_msgs
         tf
+        tf2
         geometry_msgs
         pcl_ros
         pcl_conversions
@@ -38,6 +39,7 @@ catkin_package(
         CATKIN_DEPENDS roscpp
         std_msgs
         tf
+        tf2
         geometry_msgs
         autoware_msgs
         autoware_config_msgs
@@ -92,8 +94,28 @@ target_link_libraries(twist_gate ${catkin_LIBRARIES})
 add_dependencies(twist_gate
         ${catkin_EXPORTED_TARGETS})
 
+set(MPC_FOLLOWER_SRC
+        nodes/mpc_follower/mpc_utils.cpp
+        nodes/mpc_follower/mpc_trajectory.cpp
+        nodes/mpc_follower/lowpass_filter.cpp
+        nodes/mpc_follower/vehicle_model/vehicle_model_interface.cpp
+        nodes/mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics.cpp
+        nodes/mpc_follower/qp_solver/qp_solver.cpp
+)
+
+add_executable(mpc_follower 
+        nodes/mpc_follower/mpc_follower.cpp 
+        ${MPC_FOLLOWER_SRC})
+add_dependencies(mpc_follower ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(mpc_follower ${catkin_LIBRARIES})
+
+add_executable(mpc_waypoints_converter nodes/mpc_follower/mpc_waypoints_converter.cpp)
+add_dependencies(mpc_waypoints_converter ${catkin_EXPORTED_TARGETS})
+target_link_libraries(mpc_waypoints_converter ${catkin_LIBRARIES})
+
+
 ## Install executables and/or libraries
-install(TARGETS libwaypoint_follower pure_pursuit wf_simulator twist_filter twist_gate
+install(TARGETS libwaypoint_follower pure_pursuit wf_simulator twist_filter twist_gate mpc_follower mpc_waypoints_converter
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
@@ -118,3 +140,15 @@ if (CATKIN_ENABLE_TESTING)
     target_link_libraries(test-twist_gate
       ${catkin_LIBRARIES})
 endif ()
+
+install(DIRECTORY config/
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+        PATTERN ".svn" EXCLUDE)
+
+## TESTS
+# if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest_gtest(test-mpc nodes/mpc_follower/test/test_mpc.test nodes/mpc_follower/test/src/test_mpc.cpp ${MPC_FOLLOWER_SRC})
+  target_link_libraries(test-mpc ${catkin_LIBRARIES})
+# endif()
+
