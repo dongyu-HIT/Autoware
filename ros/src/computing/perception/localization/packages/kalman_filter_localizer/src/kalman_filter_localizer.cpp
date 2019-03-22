@@ -134,7 +134,7 @@ void KalmanFilterNode::timerCallback(const ros::TimerEvent &e)
 void KalmanFilterNode::setCurrentResult()
 {
 
-  current_kf_pose_.header.frame_id = "world";
+  current_kf_pose_.header.frame_id = pose_frame_id_;
   current_kf_pose_.header.stamp = ros::Time::now();
   current_kf_pose_.pose.position.x = kf_.getXelement(IDX::X);
   current_kf_pose_.pose.position.y = kf_.getXelement(IDX::Y);
