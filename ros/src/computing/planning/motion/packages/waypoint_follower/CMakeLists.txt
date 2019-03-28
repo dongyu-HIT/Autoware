@@ -48,6 +48,7 @@ catkin_package(
         sensor_msgs
         tablet_socket_msgs
         autoware_health_checker
+        gazebo_msgs
 )
 
 ###########
@@ -113,6 +114,14 @@ add_executable(mpc_waypoints_converter nodes/mpc_follower/mpc_waypoints_converte
 add_dependencies(mpc_waypoints_converter ${catkin_EXPORTED_TARGETS})
 target_link_libraries(mpc_waypoints_converter ${catkin_LIBRARIES})
 
+add_executable(twist_pub nodes/mpc_follower/twist_pub.cpp)
+add_dependencies(twist_pub ${catkin_EXPORTED_TARGETS})
+target_link_libraries(twist_pub ${catkin_LIBRARIES})
+
+
+add_executable(gazebo_twist_calculator nodes/mpc_follower/gazebo_twist_calculator.cpp)
+add_dependencies(gazebo_twist_calculator ${catkin_EXPORTED_TARGETS})
+target_link_libraries(gazebo_twist_calculator ${catkin_LIBRARIES})
 
 ## Install executables and/or libraries
 install(TARGETS libwaypoint_follower pure_pursuit wf_simulator twist_filter twist_gate mpc_follower mpc_waypoints_converter
@@ -128,6 +137,15 @@ install(DIRECTORY launch/
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
         PATTERN ".svn" EXCLUDE)
 
+
+## TESTS
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest_gtest(test-mpc nodes/mpc_follower/test/test_mpc.test nodes/mpc_follower/test/src/test_mpc.cpp ${MPC_FOLLOWER_SRC})
+  target_link_libraries(test-mpc ${catkin_LIBRARIES})
+endif()
+
+
 if (CATKIN_ENABLE_TESTING)
     find_package(rostest REQUIRED)
     add_rostest_gtest(test-twist_gate
@@ -141,6 +159,7 @@ if (CATKIN_ENABLE_TESTING)
       ${catkin_LIBRARIES})
 endif ()
 
+
 install(DIRECTORY config/
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
         PATTERN ".svn" EXCLUDE)
@@ -151,4 +170,3 @@ install(DIRECTORY config/
   add_rostest_gtest(test-mpc nodes/mpc_follower/test/test_mpc.test nodes/mpc_follower/test/src/test_mpc.cpp ${MPC_FOLLOWER_SRC})
   target_link_libraries(test-mpc ${catkin_LIBRARIES})
 # endif()
-

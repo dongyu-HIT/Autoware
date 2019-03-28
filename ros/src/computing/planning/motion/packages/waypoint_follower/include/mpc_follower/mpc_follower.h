@@ -1,3 +1,19 @@
+/*
+ * Copyright 2018-2019 Autoware Foundation. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <vector>
 #include <iostream>
@@ -58,7 +74,8 @@ private:
 
   /* parameters */
   double ctrl_period_;              // deside control frequency
-  bool use_path_smoothing_;         // flag for path smoothing
+  bool enable_path_smoothing_;      // flag for path smoothing
+  bool enable_yaw_recalculation_;   // recalculate yaw angle after resampling
   int path_filter_moving_ave_num_;  // path smoothing moving average number
   int path_smoothing_times_;        // number of times of applying smoothing filter
   int curvature_smoothing_num_;     // for smoothing curvature calculation
@@ -112,4 +129,10 @@ private:
   ros::Publisher pub_debug_filtered_traj_, pub_debug_predicted_traj_, pub_debug_values_;
   ros::Subscriber sub_ndt_twist_;
   void convertTrajToMarker(const MPCTrajectory &traj, visualization_msgs::Marker &markers, std::string ns, double r, double g, double b);
+
+  geometry_msgs::TwistStamped estimate_twist_;
+  ros::Subscriber sub_estimate_twist_;
+  void callbackEstimateTwist(const geometry_msgs::TwistStamped &msg) {
+    estimate_twist_ = msg;
+  }
 };

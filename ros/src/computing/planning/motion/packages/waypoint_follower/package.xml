@@ -35,6 +35,7 @@
     <run_depend>sensor_msgs</run_depend>
     <run_depend>tablet_socket_msgs</run_depend>
     <run_depend>autoware_health_checker</run_depend>
+    <run_depend>gazebo_msgs</run_depend>
     <export>
     </export>
 </package>
