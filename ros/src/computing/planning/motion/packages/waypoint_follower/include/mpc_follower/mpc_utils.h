@@ -68,7 +68,7 @@ void convertWaypointsToMPCTrajWithTimeResample(const autoware_msgs::Lane &path, 
 void calcPathRelativeTime(const autoware_msgs::Lane &path, std::vector<double> &path_time);
 
 /* Calculate nearest pose on path */
-void calcNearestPose(const MPCTrajectory &traj, const geometry_msgs::Pose &self_pose, geometry_msgs::Pose &nearest_pose,
+bool calcNearestPose(const MPCTrajectory &traj, const geometry_msgs::Pose &self_pose, geometry_msgs::Pose &nearest_pose,
                      unsigned int &nearest_index, double &min_dist_error, double &nearest_yaw_error, double &nearest_time);
 
 /* Calculate neareset pose on path with interpolation */

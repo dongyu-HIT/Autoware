@@ -322,7 +322,7 @@ void MPCUtils::calcPathRelativeTime(const autoware_msgs::Lane &path, std::vector
   }
 }
 
-void MPCUtils::calcNearestPose(const MPCTrajectory &traj, const geometry_msgs::Pose &self_pose, geometry_msgs::Pose &nearest_pose,
+bool MPCUtils::calcNearestPose(const MPCTrajectory &traj, const geometry_msgs::Pose &self_pose, geometry_msgs::Pose &nearest_pose,
                                unsigned int &nearest_index, double &min_dist_error, double &nearest_yaw_error, double &nearest_time)
 {
   int nearest_index_tmp = -1;
@@ -360,6 +360,7 @@ void MPCUtils::calcNearestPose(const MPCTrajectory &traj, const geometry_msgs::P
   nearest_pose.position.x = traj.x[nearest_index];
   nearest_pose.position.y = traj.y[nearest_index];
   nearest_pose.orientation = getQuaternionFromYaw(traj.yaw[nearest_index]);
+  return true;
 };
 
 bool MPCUtils::calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_msgs::Pose &self_pose, geometry_msgs::Pose &nearest_pose,
