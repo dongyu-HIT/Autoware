@@ -325,9 +325,9 @@ void MPCUtils::calcPathRelativeTime(const autoware_msgs::Lane &path, std::vector
 void MPCUtils::calcNearestPose(const MPCTrajectory &traj, const geometry_msgs::Pose &self_pose, geometry_msgs::Pose &nearest_pose,
                                unsigned int &nearest_index, double &min_dist_error, double &nearest_yaw_error, double &nearest_time)
 {
-  nearest_index = 0;
-  nearest_yaw_error = std::numeric_limits<double>::max();
+  int nearest_index_tmp = -1;
   double min_dist_squared = std::numeric_limits<double>::max();
+  nearest_yaw_error = std::numeric_limits<double>::max();
   for (uint i = 0; i < traj.size(); ++i)
   {
     const double dx = self_pose.position.x - traj.x[i];
@@ -336,18 +336,24 @@ void MPCUtils::calcNearestPose(const MPCTrajectory &traj, const geometry_msgs::P
 
     /* ignore when yaw error is large, for crossing path */
     const double err_yaw = intoSemicircle(tf2::getYaw(self_pose.orientation) - traj.yaw[i]);
-    if (fabs(err_yaw) < (M_PI / 2.0))
+    if (fabs(err_yaw) < (M_PI / 3.0))
     {
-
       if (dist_squared < min_dist_squared)
       {
         /* save nearest index */
         min_dist_squared = dist_squared;
         nearest_yaw_error = err_yaw;
-        nearest_index = i;
+        nearest_index_tmp = i;
       }
     }
   }
+  if (nearest_index_tmp == -1)
+  {
+    ROS_WARN("[calcNearestPose] yaw error is over PI/3 for all waypoints. no closest waypoint found.");
+    return false;
+  }
+
+  nearest_index = nearest_index_tmp;
 
   min_dist_error = std::sqrt(min_dist_squared);
   nearest_time = traj.relative_time[nearest_index];
@@ -369,7 +375,7 @@ bool MPCUtils::calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_m
   const double my_y = self_pose.position.y;
   const double my_yaw = tf2::getYaw(self_pose.orientation);
 
-  nearest_index = 1;
+  int nearest_index_tmp = -1;
   double min_dist_squared = std::numeric_limits<double>::max();
   for (uint i = 0; i < traj.size(); ++i)
   {
@@ -379,21 +385,23 @@ bool MPCUtils::calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_m
 
     /* ignore when yaw error is large, for crossing path */
     const double err_yaw = intoSemicircle(my_yaw - traj.yaw[i]);
-    if (fabs(err_yaw) < (M_PI / 2.0))
+    if (fabs(err_yaw) < (M_PI / 3.0))
     {
       if (dist_squared < min_dist_squared)
       {
         /* save nearest index */
         min_dist_squared = dist_squared;
-        nearest_index = i;
+        nearest_index_tmp = i;
       }
     }
   }
-  if (nearest_index == -1)
+  if (nearest_index_tmp == -1)
   {
-    ROS_WARN("[calcNearestPoseInterp] yaw error is over PI/2 for all waypoints. no closest waypoint found.");
+    ROS_WARN("[calcNearestPoseInterp] yaw error is over PI/3 for all waypoints. no closest waypoint found.");
     return false;
   }
+
+  nearest_index = nearest_index_tmp;
 
   if (traj.size() == 1)
   {

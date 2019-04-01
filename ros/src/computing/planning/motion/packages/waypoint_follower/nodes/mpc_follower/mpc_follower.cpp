@@ -136,7 +136,7 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
 
   geometry_msgs::Pose nearest_pose;
   const double current_yaw = tf2::getYaw(vehicle_status_.pose.orientation);
-
+  
   /* calculate nearest point on reference trajectory (used as initial state) */
   unsigned int nearest_index = 0;
   double nearest_yaw_error = std::numeric_limits<double>::max();
