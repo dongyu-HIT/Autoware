@@ -46,12 +46,17 @@ add_executable(kalman_filter_localizer src/kalman_filter_localizer.cpp)
 add_dependencies(kalman_filter_localizer ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(kalman_filter_localizer ${catkin_LIBRARIES} amathutils_lib)
 
+add_executable(twist_generator src/twist_generator.cpp)
+add_dependencies(twist_generator ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(twist_generator ${catkin_LIBRARIES})
+
+
 #############
 ## Install ##
 #############
 
 ## Install executables and/or libraries
-install(TARGETS kalman_filter_localizer
+install(TARGETS kalman_filter_localizer twist_generator
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
