@@ -90,7 +90,17 @@ MPCFollower::MPCFollower()
   pub_debug_filtered_traj_ = pnh_.advertise<visualization_msgs::Marker>("debug/filtered_traj", 1);
   pub_debug_predicted_traj_ = pnh_.advertise<visualization_msgs::Marker>("debug/predicted_traj", 1);
   pub_debug_values_ = pnh_.advertise<std_msgs::Float64MultiArray>("debug/debug_values", 1);
+  pub_debug_mpc_calc_time_ = pnh_.advertise<std_msgs::Float64>("debug/mpc_calc_time", 1);
   sub_estimate_twist_ = nh_.subscribe("/estimate_twist", 1, &MPCFollower::callbackEstimateTwist, this);
+
+  pub_steer_cmd_ = pnh_.advertise<std_msgs::Float64>("debug/steer_cmd", 1);
+  pub_steer_cmd_ff_ = pnh_.advertise<std_msgs::Float64>("debug/steer_cmd_ff", 1);
+  pub_steer_ = pnh_.advertise<std_msgs::Float64>("debug/steer", 1);
+  pub_laterr_ = pnh_.advertise<std_msgs::Float64>("debug/laterr", 1);
+  pub_yawerr_ = pnh_.advertise<std_msgs::Float64>("debug/yawerr", 1);
+  pub_angvel_cmd_ = pnh_.advertise<std_msgs::Float64>("debug/angvel_cmd", 1);
+  pub_angvel_cmd_ff_ = pnh_.advertise<std_msgs::Float64>("debug/angvel_cmd_ff", 1);
+  pub_angvel_estimatetwist_ = pnh_.advertise<std_msgs::Float64>("debug/angvel_estimatetwist", 1);
 };
 
 void MPCFollower::timerCallback(const ros::TimerEvent &te)
@@ -111,8 +121,12 @@ void MPCFollower::timerCallback(const ros::TimerEvent &te)
   auto start = std::chrono::system_clock::now();
   const bool mpc_solved = calculateMPC(vel_cmd, steer_cmd);
   auto end = std::chrono::system_clock::now();
-  double elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-  DEBUG_INFO("[timerCallback] MPC calculating time = %f [ms]\n", elapsed * 1.0e-6);
+  double elapsed_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() * 1.0e-6;
+  DEBUG_INFO("[timerCallback] MPC calculating time = %f [ms]\n", elapsed_ms);
+
+  std_msgs::Float64 mpc_calc_time_msg;
+  mpc_calc_time_msg.data = elapsed_ms;
+  pub_debug_mpc_calc_time_.publish(mpc_calc_time_msg);
 
   if (!mpc_solved)
   {
@@ -352,8 +366,9 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
 
   /* publish debug values */
   const double input_curvature = tan(steer_cmd) / wheelbase_;
-  const double nearest_wz = nearest_ref_k * vehicle_status_.twist.linear.x;
-  const double input_wz = input_curvature * vehicle_status_.twist.linear.x;
+  const double nearest_angvel_ff = nearest_ref_k * vehicle_status_.twist.linear.x;
+  const double angvel_cmd = input_curvature * vehicle_status_.twist.linear.x;
+  const double steer_cmd_ff = Urefex(0);
   std_msgs::Float64MultiArray debug_values;
   debug_values.data.clear();
   debug_values.data.push_back(u_sat);
@@ -363,12 +378,32 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   debug_values.data.push_back(err_yaw);
   // debug_values.data.push_back(nearest_ref_k);
   // debug_values.data.push_back(input_curvature);
-  debug_values.data.push_back(nearest_wz);
-  debug_values.data.push_back(input_wz);
+  debug_values.data.push_back(nearest_angvel_ff);
+  debug_values.data.push_back(angvel_cmd);
   debug_values.data.push_back(estimate_twist_.twist.angular.z);
   debug_values.data.push_back(MPCUtils::intoSemicircle(current_yaw));
   debug_values.data.push_back(MPCUtils::intoSemicircle(sp_yaw));
   pub_debug_values_.publish(debug_values);
+
+  std_msgs::Float64 steer_cmd_msg, steer_cmd_ff_msg, steer_msg, err_lat_msg, err_yaw_msg, angvel_cmd_msg, nearest_angvel_ff_msg, angvel_estimatetwist_msg;
+  steer_cmd_msg.data = steer_cmd;
+  steer_cmd_ff_msg.data = steer_cmd_ff;
+  steer_msg.data = steer;
+  err_lat_msg.data = err_lat;
+  err_yaw_msg.data = err_yaw;
+  angvel_cmd_msg.data = angvel_cmd;
+  nearest_angvel_ff_msg.data = nearest_angvel_ff;
+  angvel_estimatetwist_msg.data = estimate_twist_.twist.angular.z;
+
+  pub_steer_cmd_.publish(steer_cmd_msg);
+  pub_steer_cmd_ff_.publish(steer_cmd_ff_msg);
+  pub_steer_.publish(steer_msg);
+  pub_laterr_.publish(err_lat_msg);
+  pub_yawerr_.publish(err_yaw_msg);
+  pub_angvel_cmd_.publish(angvel_cmd_msg);
+  pub_angvel_cmd_ff_.publish(nearest_angvel_ff_msg);
+  pub_angvel_estimatetwist_.publish(angvel_estimatetwist_msg);
+
   return true;
 };
 

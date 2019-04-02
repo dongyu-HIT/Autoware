@@ -24,6 +24,7 @@
 
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Float32.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -125,7 +126,8 @@ private:
 
   /* debug */
   bool show_debug_info_;
-  ros::Publisher pub_debug_filtered_traj_, pub_debug_predicted_traj_, pub_debug_values_;
+  ros::Publisher pub_debug_filtered_traj_, pub_debug_predicted_traj_, pub_debug_values_, pub_debug_mpc_calc_time_;
+  ros::Publisher pub_steer_cmd_, pub_steer_cmd_ff_, pub_steer_, pub_laterr_, pub_yawerr_, pub_angvel_cmd_, pub_angvel_cmd_ff_, pub_angvel_estimatetwist_;
   ros::Subscriber sub_ndt_twist_;
   void convertTrajToMarker(const MPCTrajectory &traj, visualization_msgs::Marker &markers, std::string ns, double r, double g, double b);
 
