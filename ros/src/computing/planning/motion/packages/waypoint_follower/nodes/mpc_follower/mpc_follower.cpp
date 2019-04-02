@@ -529,8 +529,8 @@ void MPCFollower::callbackPose(const geometry_msgs::PoseStamped::ConstPtr &msg)
 
 void MPCFollower::callbackVehicleStatus(const autoware_msgs::VehicleStatus &msg)
 {
-  vehicle_status_.tire_angle_rad = msg.angle / 60.0;
-  vehicle_status_.twist.linear.x = msg.speed * 1000.0 / 3600.0;
+  vehicle_status_.tire_angle_rad = msg.angle;
+  vehicle_status_.twist.linear.x = msg.speed;
   my_steering_ok_ = true;
   my_velocity_ok_ = true;
 };
