@@ -72,6 +72,10 @@ MPCFollower::MPCFollower()
   pnh_.param("steering_lpf_cutoff_hz", steering_lpf_cutoff_hz, double(3.0));
   lpf_steering_cmd_.initialize(ctrl_period_, steering_lpf_cutoff_hz);
 
+  /* initialize qp solver */
+  int max_qp_iter = 200;
+  qpsolver_.init(max_qp_iter);
+
   /* set up ros system */
   timer_control_ = nh_.createTimer(ros::Duration(ctrl_period_), &MPCFollower::timerCallback, this);
   std::string out_twist, out_vehicle_cmd, in_vehicle_status, in_waypoints, in_selfpose;
@@ -305,7 +309,8 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   Eigen::VectorXd Uex;
 
   auto start = std::chrono::system_clock::now();
-  if (!qpsolver::solveEigenLeastSquareLLT(H, f, Uex)){
+  const double u_lim = steer_lim_deg_ * DEG2RAD;
+  if (!qpsolver_.solve(H, f.transpose(), u_lim, Uex)){
     ROS_WARN("qp solver error");
     return false;
   }
@@ -322,7 +327,7 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   DEBUG_INFO("[calculateMPC] mpc raw steering angle command = %f [deg], delay compensated = %f [deg]", Uex(0) * RAD2DEG, u_delay_comped * RAD2DEG);
 
   /* saturation */
-  const double u_sat = std::max(std::min(u_delay_comped, steer_lim_deg_ * DEG2RAD), -steer_lim_deg_ * DEG2RAD);
+  const double u_sat = std::max(std::min(u_delay_comped, u_lim), -u_lim);
 
   /* filtering */
   const double u_filtered = lpf_steering_cmd_.filter(u_sat);
@@ -564,8 +569,8 @@ void MPCFollower::callbackPose(const geometry_msgs::PoseStamped::ConstPtr &msg)
 
 void MPCFollower::callbackVehicleStatus(const autoware_msgs::VehicleStatus &msg)
 {
-  vehicle_status_.tire_angle_rad = msg.angle;
-  vehicle_status_.twist.linear.x = msg.speed;
+  vehicle_status_.tire_angle_rad = msg.angle * 3.1415 / 180.0;
+  vehicle_status_.twist.linear.x = msg.speed / 3.6;
   my_steering_ok_ = true;
   my_velocity_ok_ = true;
 };

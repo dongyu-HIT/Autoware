@@ -19,11 +19,47 @@
 #include <eigen3/Eigen/Core>
 #include <Eigen/Dense>
 #include <eigen3/Eigen/LU>
+#include <qpOASES.hpp>
+#include <cmath>
 
-namespace qpsolver
+// namespace qpsolver
+// {
+// bool solveEigenLeastSquare(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec,
+//                            Eigen::VectorXd &U);
+// bool solveEigenLeastSquareLLT(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec,
+//                               Eigen::VectorXd &U);
+// bool solveQpoases(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, Eigen::VectorXd &U);
+
+// bool solveByHotstart(qpOASES::SQProblem& solver, const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, Eigen::VectorXd &U, bool is_init);
+
+// }
+
+class QPSolverEigenLeastSquare
 {
-bool solveEigenLeastSquare(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec,
-                           Eigen::VectorXd &U);
-bool solveEigenLeastSquareLLT(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec,
-                              Eigen::VectorXd &U);
-}
+  public:
+    QPSolverEigenLeastSquare();
+
+    void init(const int max_iter);
+    bool solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const double &max_u, Eigen::VectorXd &U);
+};
+
+class QPSolverEigenLeastSquareLLT
+{
+  public:
+    QPSolverEigenLeastSquareLLT();
+
+    void init(const int max_iter);
+    bool solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const double &max_u, Eigen::VectorXd &U);
+};
+
+class QPSolverQpoasesHotstart
+{
+  public:
+    bool is_init_;
+    int max_iter_;
+    qpOASES::SQProblem solver_;
+    QPSolverQpoasesHotstart();
+
+    void init(const int max_iter);
+    bool solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const double &max_u, Eigen::VectorXd &U);
+};

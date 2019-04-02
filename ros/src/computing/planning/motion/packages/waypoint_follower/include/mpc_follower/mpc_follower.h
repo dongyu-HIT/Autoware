@@ -44,6 +44,7 @@
 #include "mpc_follower/lowpass_filter.h"
 #include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics.h"
 #include "mpc_follower/qp_solver/qp_solver.h"
+#include "qpOASES.hpp"
 
 class MPCFollower
 {
@@ -107,6 +108,9 @@ private:
     double tire_angle_rad;
   };
   VehicleStatus vehicle_status_; // updated by topic callback
+
+  // QPSolverEigenLeastSquareLLT qpsolver_;
+  QPSolverQpoasesHotstart qpsolver_;
 
   /* flags */
   bool my_position_ok_;
