@@ -49,7 +49,8 @@ MPCFollower::MPCFollower()
   /* vehicle model initialize */
   double steer_tau;
   pnh_.param("vehicle_model_steer_tau", steer_tau, double(0.1));
-  vehicle_model_.setParams(wheelbase_, steer_tau, steer_lim_deg_);
+  // vehicle_model_.setParams(wheelbase_, steer_tau, steer_lim_deg_); // with 1st order steering dynamics
+  vehicle_model_.setParams(wheelbase_, steer_lim_deg_); // without steering dynamics
 
   /* set control command interface */
   std::string ctrl_cmd_interface_string;
@@ -201,7 +202,8 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   const double steer = vehicle_status_.tire_angle_rad;
 
   /* define initial state for error dynamics */
-  const Eigen::VectorXd x0 = (Eigen::VectorXd(DIM_X) << err_lat, err_yaw, steer).finished();
+  // const Eigen::VectorXd x0 = (Eigen::VectorXd(DIM_X) << err_lat, err_yaw, steer).finished();
+  const Eigen::VectorXd x0 = (Eigen::VectorXd(DIM_X) << err_lat, err_yaw).finished();
   DEBUG_INFO("[calculateMPC] lat error = %f, yaw error = %f, steer = %f, sp_yaw = %f, my_yaw = %f", err_lat, err_yaw, steer, sp_yaw, current_yaw);
 
   /////////////// generate mpc matrix  ///////////////

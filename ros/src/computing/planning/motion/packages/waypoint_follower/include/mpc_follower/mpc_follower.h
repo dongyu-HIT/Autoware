@@ -43,6 +43,7 @@
 #include "mpc_follower/mpc_trajectory.h"
 #include "mpc_follower/lowpass_filter.h"
 #include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics.h"
+#include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_steer.h"
 #include "mpc_follower/qp_solver/qp_solver.h"
 #include "qpOASES.hpp"
 
@@ -60,7 +61,8 @@ private:
 
   MPCTrajectory ref_traj_;                // reference trajectory for mpc
   Butterworth2dFilter lpf_steering_cmd_;  // steering command lowpass filter
-  KinematicsBicycleModel vehicle_model_;  // vehicle model
+  // KinematicsBicycleModel vehicle_model_;  // vehicle model
+  KinematicsBicycleModelNoSteer vehicle_model_;
   autoware_msgs::Lane current_waypoints_; // current received waypoints
 
   /* set vehicle control command interface */
