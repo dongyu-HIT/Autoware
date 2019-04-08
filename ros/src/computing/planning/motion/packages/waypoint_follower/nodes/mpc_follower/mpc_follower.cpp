@@ -271,34 +271,31 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
     R_adaptive(0, 0) += ref_vx * ref_vx * mpc_param_.weight_steering_input_squared_vel_coeff;
 
     /* update mpc matrix */
+    int idx_x_i = i * DIM_X;
+    int idx_x_i_prev = (i - 1) * DIM_X;
+    int idx_u_i = i * DIM_U;
+    int idx_y_i = i * DIM_Y;
     if (i == 0)
     {
       nearest_ref_k = ref_k;
       Aex.block(0, 0, DIM_X, DIM_X) = Ad;
       Bex.block(0, 0, DIM_X, DIM_U) = Bd;
       Wex.block(0, 0, DIM_X, 1) = Wd;
-      Cex.block(0, 0, DIM_Y, DIM_X) = Cd;
-      Qex.block(0, 0, DIM_Y, DIM_Y) = Q_adaptive;
-      Rex.block(0, 0, DIM_U, DIM_U) = R_adaptive;
     }
     else
     {
-      int idx_x_i = i * DIM_X;
-      int idx_x_i_prev = (i - 1) * DIM_X;
-      int idx_u_i = i * DIM_U;
-      int idx_y_i = i * DIM_Y;
       Aex.block(idx_x_i, 0, DIM_X, DIM_X) = Ad * Aex.block(idx_x_i_prev, 0, DIM_X, DIM_X);
       for (int j = 0; j < i; ++j)
       {
         int idx_u_j = j * DIM_U;
         Bex.block(idx_x_i, idx_u_j, DIM_X, DIM_U) = Ad * Bex.block(idx_x_i_prev, idx_u_j, DIM_X, DIM_U);
       }
-      Bex.block(idx_x_i, idx_u_i, DIM_X, DIM_U) = Bd;
       Wex.block(idx_x_i, 0, DIM_X, 1) = Ad * Wex.block(idx_x_i_prev, 0, DIM_X, 1) + Wd;
-      Cex.block(idx_y_i, idx_x_i, DIM_Y, DIM_X) = Cd;
-      Qex.block(idx_y_i, idx_y_i, DIM_Y, DIM_Y) = Q_adaptive;
-      Rex.block(idx_u_i, idx_u_i, DIM_U, DIM_U) = R_adaptive;
     }
+    Bex.block(idx_x_i, idx_u_i, DIM_X, DIM_U) = Bd;
+    Cex.block(idx_y_i, idx_x_i, DIM_Y, DIM_X) = Cd;
+    Qex.block(idx_y_i, idx_y_i, DIM_Y, DIM_Y) = Q_adaptive;
+    Rex.block(idx_u_i, idx_u_i, DIM_U, DIM_U) = R_adaptive;
 
     /* get reference input (feed-forward) */
     if (std::fabs(ref_k) < mpc_param_.zero_curvature_range)
