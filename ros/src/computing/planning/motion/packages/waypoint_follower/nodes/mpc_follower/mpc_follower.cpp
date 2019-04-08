@@ -38,8 +38,10 @@ MPCFollower::MPCFollower()
   pnh_.param("mpc_dt", mpc_param_.dt, double(0.1));
   pnh_.param("mpc_weight_lat_error", mpc_param_.weight_lat_error, double(1.0));
   pnh_.param("mpc_weight_heading_error", mpc_param_.weight_heading_error, double(1.0));
+  pnh_.param("mpc_weight_heading_error_squared_vel_coeff", mpc_param_.weight_heading_error_squared_vel_coeff, double(0.0));
   pnh_.param("mpc_weight_steering_input", mpc_param_.weight_steering_input, double(1.0));
-  pnh_.param("mpc_weight_steering_input_vel_coeff", mpc_param_.weight_steering_input_vel_coeff, double(0.0));
+  pnh_.param("mpc_weight_steering_input_squared_vel_coeff", mpc_param_.weight_steering_input_squared_vel_coeff, double(0.0));
+  pnh_.param("mpc_weight_lat_jerk", mpc_param_.weight_lat_jerk, double(0.0));
   pnh_.param("mpc_delay_compensation_time", mpc_param_.delay_compensation_time, double(0.05));
   pnh_.param("mpc_zero_curvature_range", mpc_param_.zero_curvature_range, double(0.03));
   
@@ -49,8 +51,8 @@ MPCFollower::MPCFollower()
   /* vehicle model initialize */
   double steer_tau;
   pnh_.param("vehicle_model_steer_tau", steer_tau, double(0.1));
-  // vehicle_model_.setParams(wheelbase_, steer_tau, steer_lim_deg_); // with 1st order steering dynamics
-  vehicle_model_.setParams(wheelbase_, steer_lim_deg_); // without steering dynamics
+  vehicle_model_.setParams(wheelbase_, steer_tau, steer_lim_deg_); // with 1st order steering dynamics
+  // vehicle_model_.setParams(wheelbase_, steer_lim_deg_); // without steering dynamics
 
   /* set control command interface */
   std::string ctrl_cmd_interface_string;
@@ -67,6 +69,8 @@ MPCFollower::MPCFollower()
   {
     ROS_ERROR("output interface is inappropriate");
   }
+
+  steer_cmd_prev_ = 0.0;
 
   /* initialize lowpass filter */
   double steering_lpf_cutoff_hz;
@@ -95,17 +99,19 @@ MPCFollower::MPCFollower()
   pub_debug_filtered_traj_ = pnh_.advertise<visualization_msgs::Marker>("debug/filtered_traj", 1);
   pub_debug_predicted_traj_ = pnh_.advertise<visualization_msgs::Marker>("debug/predicted_traj", 1);
   pub_debug_values_ = pnh_.advertise<std_msgs::Float64MultiArray>("debug/debug_values", 1);
-  pub_debug_mpc_calc_time_ = pnh_.advertise<std_msgs::Float64>("debug/mpc_calc_time", 1);
+  pub_debug_mpc_calc_time_ = pnh_.advertise<std_msgs::Float32>("debug/mpc_calc_time", 1);
   sub_estimate_twist_ = nh_.subscribe("/estimate_twist", 1, &MPCFollower::callbackEstimateTwist, this);
 
-  pub_steer_cmd_ = pnh_.advertise<std_msgs::Float64>("debug/steer_cmd", 1);
-  pub_steer_cmd_ff_ = pnh_.advertise<std_msgs::Float64>("debug/steer_cmd_ff", 1);
-  pub_steer_ = pnh_.advertise<std_msgs::Float64>("debug/steer", 1);
-  pub_laterr_ = pnh_.advertise<std_msgs::Float64>("debug/laterr", 1);
-  pub_yawerr_ = pnh_.advertise<std_msgs::Float64>("debug/yawerr", 1);
-  pub_angvel_cmd_ = pnh_.advertise<std_msgs::Float64>("debug/angvel_cmd", 1);
-  pub_angvel_cmd_ff_ = pnh_.advertise<std_msgs::Float64>("debug/angvel_cmd_ff", 1);
-  pub_angvel_estimatetwist_ = pnh_.advertise<std_msgs::Float64>("debug/angvel_estimatetwist", 1);
+  pub_steer_cmd_ = pnh_.advertise<std_msgs::Float32>("debug/steer_cmd", 1);
+  pub_steer_cmd_ff_ = pnh_.advertise<std_msgs::Float32>("debug/steer_cmd_ff", 1);
+  pub_steer_ = pnh_.advertise<std_msgs::Float32>("debug/steer", 1);
+  pub_laterr_ = pnh_.advertise<std_msgs::Float32>("debug/laterr", 1);
+  pub_yawerr_ = pnh_.advertise<std_msgs::Float32>("debug/yawerr", 1);
+  pub_angvel_cmd_ = pnh_.advertise<std_msgs::Float32>("debug/angvel_cmd", 1);
+  pub_angvel_steer_ = pnh_.advertise<std_msgs::Float32>("debug/angvel_from_steer", 1);
+  pub_angvel_cmd_ff_ = pnh_.advertise<std_msgs::Float32>("debug/angvel_cmd_ff", 1);
+  pub_angvel_estimatetwist_ = pnh_.advertise<std_msgs::Float32>("debug/angvel_estimatetwist", 1);
+  pub_steercmd_raw_ = pnh_.advertise<std_msgs::Float32>("debug/steer_cmd_mpc_raw", 1);
 };
 
 void MPCFollower::timerCallback(const ros::TimerEvent &te)
@@ -129,7 +135,7 @@ void MPCFollower::timerCallback(const ros::TimerEvent &te)
   double elapsed_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() * 1.0e-6;
   DEBUG_INFO("[timerCallback] MPC calculating time = %f [ms]\n", elapsed_ms);
 
-  std_msgs::Float64 mpc_calc_time_msg;
+  std_msgs::Float32 mpc_calc_time_msg;
   mpc_calc_time_msg.data = elapsed_ms;
   pub_debug_mpc_calc_time_.publish(mpc_calc_time_msg);
 
@@ -155,7 +161,7 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
 
   geometry_msgs::Pose nearest_pose;
   const double current_yaw = tf2::getYaw(vehicle_status_.pose.orientation);
-  
+
   /* calculate nearest point on reference trajectory (used as initial state) */
   unsigned int nearest_index = 0;
   double nearest_yaw_error = std::numeric_limits<double>::max();
@@ -178,7 +184,7 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
     }
 
   /* set mpc initial time */
-  const double mpc_start_time = nearest_traj_time; 
+  const double mpc_start_time = nearest_traj_time;
   DEBUG_INFO("[calculateMPC] nearest_traj_time = %f", nearest_traj_time);
 
   /* check trajectory length */
@@ -202,8 +208,8 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   const double steer = vehicle_status_.tire_angle_rad;
 
   /* define initial state for error dynamics */
-  // const Eigen::VectorXd x0 = (Eigen::VectorXd(DIM_X) << err_lat, err_yaw, steer).finished();
-  const Eigen::VectorXd x0 = (Eigen::VectorXd(DIM_X) << err_lat, err_yaw).finished();
+  const Eigen::VectorXd x0 = (Eigen::VectorXd(DIM_X) << err_lat, err_yaw, steer).finished();
+  // const Eigen::VectorXd x0 = (Eigen::VectorXd(DIM_X) << err_lat, err_yaw).finished();
   DEBUG_INFO("[calculateMPC] lat error = %f, yaw error = %f, steer = %f, sp_yaw = %f, my_yaw = %f", err_lat, err_yaw, steer, sp_yaw, current_yaw);
 
   /////////////// generate mpc matrix  ///////////////
@@ -224,9 +230,11 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   /* weight matrix depends on the vehicle model */
   Eigen::MatrixXd Q = Eigen::MatrixXd::Zero(DIM_Y, DIM_Y);
   Eigen::MatrixXd R = Eigen::MatrixXd::Zero(DIM_U, DIM_U);
+  Eigen::MatrixXd Q_adaptive = Eigen::MatrixXd::Zero(DIM_Y, DIM_Y);
+  Eigen::MatrixXd R_adaptive = Eigen::MatrixXd::Zero(DIM_U, DIM_U);
   Q(0, 0) = mpc_param_.weight_lat_error;
   Q(1, 1) = mpc_param_.weight_heading_error;
-  R(0, 0) = mpc_param_.weight_steering_input + mpc_param_.weight_steering_input_vel_coeff * std::fabs(vehicle_status_.twist.linear.x);
+  R(0, 0) = mpc_param_.weight_steering_input;
 
   Eigen::MatrixXd Ad(DIM_X, DIM_X);
   Eigen::MatrixXd Bd(DIM_X, DIM_U);
@@ -257,6 +265,11 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
     vehicle_model_.setCurvature(ref_k);
     vehicle_model_.calculateDiscreteMatrix(Ad, Bd, Cd, Wd, mpc_param_.dt);
 
+    Q_adaptive = Q;
+    R_adaptive = R;
+    Q_adaptive(1, 1) += ref_vx * ref_vx * mpc_param_.weight_heading_error_squared_vel_coeff;
+    R_adaptive(0, 0) += ref_vx * ref_vx * mpc_param_.weight_steering_input_squared_vel_coeff;
+
     /* update mpc matrix */
     if (i == 0)
     {
@@ -265,8 +278,8 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
       Bex.block(0, 0, DIM_X, DIM_U) = Bd;
       Wex.block(0, 0, DIM_X, 1) = Wd;
       Cex.block(0, 0, DIM_Y, DIM_X) = Cd;
-      Qex.block(0, 0, DIM_Y, DIM_Y) = Q;
-      Rex.block(0, 0, DIM_U, DIM_U) = R;
+      Qex.block(0, 0, DIM_Y, DIM_Y) = Q_adaptive;
+      Rex.block(0, 0, DIM_U, DIM_U) = R_adaptive;
     }
     else
     {
@@ -283,8 +296,8 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
       Bex.block(idx_x_i, idx_u_i, DIM_X, DIM_U) = Bd;
       Wex.block(idx_x_i, 0, DIM_X, 1) = Ad * Wex.block(idx_x_i_prev, 0, DIM_X, 1) + Wd;
       Cex.block(idx_y_i, idx_x_i, DIM_Y, DIM_X) = Cd;
-      Qex.block(idx_y_i, idx_y_i, DIM_Y, DIM_Y) = Q;
-      Rex.block(idx_u_i, idx_u_i, DIM_U, DIM_U) = R;
+      Qex.block(idx_y_i, idx_y_i, DIM_Y, DIM_Y) = Q_adaptive;
+      Rex.block(idx_u_i, idx_u_i, DIM_U, DIM_U) = R_adaptive;
     }
 
     /* get reference input (feed-forward) */
@@ -294,6 +307,14 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
       vehicle_model_.calculateReferenceInput(Uref); // with curvature set above
 
     Urefex.block(i * DIM_U, 0, DIM_U, 1) = Uref;
+  }
+
+  for (int i = 0; i < N - 1; ++i) {
+    const double v = mpc_resampled_ref_traj.vx[i];
+    Rex(i, i) += v * v * mpc_param_.weight_lat_jerk;
+    Rex(i + 1, i) -= v * v * mpc_param_.weight_lat_jerk;
+    Rex(i, i + 1) -= v * v * mpc_param_.weight_lat_jerk;
+    Rex(i + 1, i + 1) += v * v * mpc_param_.weight_lat_jerk;
   }
 
   /////////////// optimization ///////////////
@@ -307,8 +328,11 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   H.triangularView<Eigen::Upper>() = CB.transpose() * QCB; // NOTE: This calculation is very heavy. searching for a good way...
   H.triangularView<Eigen::Upper>() += Rex;
   H.triangularView<Eigen::Lower>() = H.transpose();
-  const Eigen::MatrixXd f = (Cex * (Aex * x0 + Wex)).transpose() * QCB - Urefex.transpose() * Rex;
+  Eigen::MatrixXd f = (Cex * (Aex * x0 + Wex)).transpose() * QCB - Urefex.transpose() * Rex;
   Eigen::VectorXd Uex;
+
+  H(0, 0) += mpc_resampled_ref_traj.vx[0] * mpc_resampled_ref_traj.vx[0] * mpc_param_.weight_lat_jerk;
+  f(0, 0) -= 2.0 * mpc_resampled_ref_traj.vx[0] * mpc_resampled_ref_traj.vx[0] * mpc_param_.weight_lat_jerk * steer_cmd_prev_;
 
   auto start = std::chrono::system_clock::now();
   const double u_lim = steer_lim_deg_ * DEG2RAD;
@@ -317,7 +341,7 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
     return false;
   }
   double elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - start).count();
-  DEBUG_INFO("[calculateMPC] qp solver calculation time = %f [ms]", elapsed * 1.0e-6);  
+  DEBUG_INFO("[calculateMPC] qp solver calculation time = %f [ms]", elapsed * 1.0e-6);
 
   /* time delay compensation, look ahead delay_compensation_time for optimized input vector*/
   double u_delay_comped;
@@ -339,15 +363,17 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
 
   /////////////// velocity control ////////////////
   /* For simplicity, now we calculate steer and speed separately */
-  double lookahead_time = 1.0;                                  // [s]
-  double cmd_vel_ref_time = nearest_traj_time + lookahead_time; // get ahead reference velocity
-  if (!MPCUtils::interp1dX<std::vector<double>, std::vector<double>>(ref_traj_.relative_time, ref_traj_.vx, cmd_vel_ref_time, vel_cmd))
-  {
-    ROS_ERROR("invalid interpolation for vel_cmd");
-  }
-  DEBUG_INFO("[calculateMPC] current velocity = %f [m/s], velocity command = %f [m/s]", vehicle_status_.twist.linear.x, vel_cmd);
+  // double lookahead_time = 1.0;                                  // [s]
+  // double cmd_vel_ref_time = nearest_traj_time + lookahead_time; // get ahead reference velocity
+  // if (!MPCUtils::interp1dX<std::vector<double>, std::vector<double>>(ref_traj_.relative_time, ref_traj_.vx, cmd_vel_ref_time, vel_cmd))
+  // {
+  //   ROS_ERROR("invalid interpolation for vel_cmd");
+  // }
+  // DEBUG_INFO("[calculateMPC] current velocity = %f [m/s], velocity command = %f [m/s]", vehicle_status_.twist.linear.x, vel_cmd);
+  vel_cmd = ref_traj_.vx[5];
 
 
+  steer_cmd_prev_ = steer_cmd;
 
   ////////////////// DEBUG ///////////////////
 
@@ -375,15 +401,18 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   const double input_curvature = tan(steer_cmd) / wheelbase_;
   const double nearest_angvel_ff = nearest_ref_k * vehicle_status_.twist.linear.x;
   const double angvel_cmd = input_curvature * vehicle_status_.twist.linear.x;
+  const double angvel_steer = vehicle_status_.twist.linear.x * tan(steer) / wheelbase_;
   const double steer_cmd_ff = Urefex(0);
   std_msgs::Float64MultiArray debug_values;
   debug_values.data.clear();
+  debug_values.data.push_back(Uex(0));
+  debug_values.data.push_back(u_delay_comped);
   debug_values.data.push_back(u_sat);
   debug_values.data.push_back(u_filtered);
   debug_values.data.push_back(steer);
   debug_values.data.push_back(err_lat);
   debug_values.data.push_back(err_yaw);
-  // debug_values.data.push_back(nearest_ref_k);
+  debug_values.data.push_back(nearest_ref_k);
   // debug_values.data.push_back(input_curvature);
   debug_values.data.push_back(nearest_angvel_ff);
   debug_values.data.push_back(angvel_cmd);
@@ -392,15 +421,17 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   debug_values.data.push_back(MPCUtils::intoSemicircle(sp_yaw));
   pub_debug_values_.publish(debug_values);
 
-  std_msgs::Float64 steer_cmd_msg, steer_cmd_ff_msg, steer_msg, err_lat_msg, err_yaw_msg, angvel_cmd_msg, nearest_angvel_ff_msg, angvel_estimatetwist_msg;
+  std_msgs::Float32 steer_cmd_msg, steer_cmd_ff_msg, steer_msg, err_lat_msg, err_yaw_msg, angvel_cmd_msg, angvel_from_steer_msg, nearest_angvel_ff_msg, angvel_estimatetwist_msg, steer_raw;
   steer_cmd_msg.data = steer_cmd;
   steer_cmd_ff_msg.data = steer_cmd_ff;
   steer_msg.data = steer;
   err_lat_msg.data = err_lat;
   err_yaw_msg.data = err_yaw;
   angvel_cmd_msg.data = angvel_cmd;
+  angvel_from_steer_msg.data = angvel_steer;
   nearest_angvel_ff_msg.data = nearest_angvel_ff;
   angvel_estimatetwist_msg.data = estimate_twist_.twist.angular.z;
+  steer_raw.data = u_sat;
 
   pub_steer_cmd_.publish(steer_cmd_msg);
   pub_steer_cmd_ff_.publish(steer_cmd_ff_msg);
@@ -408,8 +439,10 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   pub_laterr_.publish(err_lat_msg);
   pub_yawerr_.publish(err_yaw_msg);
   pub_angvel_cmd_.publish(angvel_cmd_msg);
+  pub_angvel_steer_.publish(angvel_from_steer_msg);
   pub_angvel_cmd_ff_.publish(nearest_angvel_ff_msg);
   pub_angvel_estimatetwist_.publish(angvel_estimatetwist_msg);
+  pub_steercmd_raw_.publish(steer_raw);
 
   return true;
 };
@@ -492,7 +525,8 @@ void MPCFollower::callbackRefPath(const autoware_msgs::Lane::ConstPtr &msg)
     {
       if (!MoveAverageFilter::filt_vector(path_filter_moving_ave_num_, traj.x) ||
           !MoveAverageFilter::filt_vector(path_filter_moving_ave_num_, traj.y) ||
-          !MoveAverageFilter::filt_vector(path_filter_moving_ave_num_, traj.yaw))
+          !MoveAverageFilter::filt_vector(path_filter_moving_ave_num_, traj.yaw) ||
+          !MoveAverageFilter::filt_vector(path_filter_moving_ave_num_, traj.vx))
       {
         ROS_WARN("[path callback] filtering error. stop filtering");
         return;
@@ -504,7 +538,7 @@ void MPCFollower::callbackRefPath(const autoware_msgs::Lane::ConstPtr &msg)
   if (enable_yaw_recalculation_) {
     MPCUtils::calcTrajectoryYawFromXY(traj);
   }
-  
+
 
   /* calculate curvature */
   MPCUtils::calcTrajectoryCurvature(traj, curvature_smoothing_num_);

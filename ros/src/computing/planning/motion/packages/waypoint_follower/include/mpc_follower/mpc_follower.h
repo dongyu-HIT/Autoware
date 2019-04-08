@@ -61,8 +61,8 @@ private:
 
   MPCTrajectory ref_traj_;                // reference trajectory for mpc
   Butterworth2dFilter lpf_steering_cmd_;  // steering command lowpass filter
-  // KinematicsBicycleModel vehicle_model_;  // vehicle model
-  KinematicsBicycleModelNoSteer vehicle_model_;
+  KinematicsBicycleModel vehicle_model_;  // vehicle model
+  // KinematicsBicycleModelNoSteer vehicle_model_;
   autoware_msgs::Lane current_waypoints_; // current received waypoints
 
   /* set vehicle control command interface */
@@ -91,14 +91,16 @@ private:
 
   struct MPCParam
   {
-    int n;                                  // prediction horizon step
-    double dt;                              // prediction horizon period
-    double weight_lat_error;                // for weight matrix Q
-    double weight_heading_error;            // for weight matrix Q
-    double weight_steering_input;           // for weight matrix R
-    double weight_steering_input_vel_coeff; // for weight matrix R coeff of velocity
-    double delay_compensation_time;         // use interpolation for time delay compensation
-    double zero_curvature_range;     // set reference curvature to zero when the value is smaller than this.
+    int n;                                          // prediction horizon step
+    double dt;                                      // prediction horizon period
+    double weight_lat_error;                        // for weight matrix Q
+    double weight_heading_error;                    // for weight matrix Q
+    double weight_heading_error_squared_vel_coeff;  //
+    double weight_steering_input;                   // for weight matrix R
+    double weight_steering_input_squared_vel_coeff; //
+    double weight_lat_jerk;                         //
+    double delay_compensation_time;                 // use interpolation for time delay compensation
+    double zero_curvature_range;                    // set reference curvature to zero when the value is smaller than this.
   };
   MPCParam mpc_param_; // for mpc design
 
@@ -113,6 +115,8 @@ private:
 
   // QPSolverEigenLeastSquareLLT qpsolver_;
   QPSolverQpoasesHotstart qpsolver_;
+
+  double steer_cmd_prev_;
 
   /* flags */
   bool my_position_ok_;
@@ -133,7 +137,7 @@ private:
   /* debug */
   bool show_debug_info_;
   ros::Publisher pub_debug_filtered_traj_, pub_debug_predicted_traj_, pub_debug_values_, pub_debug_mpc_calc_time_;
-  ros::Publisher pub_steer_cmd_, pub_steer_cmd_ff_, pub_steer_, pub_laterr_, pub_yawerr_, pub_angvel_cmd_, pub_angvel_cmd_ff_, pub_angvel_estimatetwist_;
+  ros::Publisher pub_steer_cmd_, pub_steercmd_raw_, pub_steer_cmd_ff_, pub_steer_, pub_laterr_, pub_yawerr_, pub_angvel_cmd_, pub_angvel_steer_, pub_angvel_cmd_ff_, pub_angvel_estimatetwist_;
   ros::Subscriber sub_ndt_twist_;
   void convertTrajToMarker(const MPCTrajectory &traj, visualization_msgs::Marker &markers, std::string ns, double r, double g, double b);
 

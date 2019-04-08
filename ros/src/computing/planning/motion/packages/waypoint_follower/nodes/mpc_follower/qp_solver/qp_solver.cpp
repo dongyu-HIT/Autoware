@@ -96,6 +96,7 @@ bool QPSolverQpoasesHotstart::solve(const Eigen::MatrixXd &Hmat, const Eigen::Ma
           auto ret = solver_.init(h_matrix, g_matrix, a_constraint_matirx, lower_bound, upper_bound, lower_bound, upper_bound, max_iter);
           if (ret != SUCCESSFUL_RETURN)
                return false;
+          is_init_ = false;
      }
      else
      {
@@ -103,7 +104,7 @@ bool QPSolverQpoasesHotstart::solve(const Eigen::MatrixXd &Hmat, const Eigen::Ma
           if (ret != SUCCESSFUL_RETURN)
                return false;
      }
-     is_init_ = false;
+     
 
      solver_.getPrimalSolution(result);
 

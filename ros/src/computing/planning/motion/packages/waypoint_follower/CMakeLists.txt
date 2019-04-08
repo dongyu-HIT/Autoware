@@ -101,7 +101,7 @@ set(MPC_FOLLOWER_SRC
         nodes/mpc_follower/lowpass_filter.cpp
         nodes/mpc_follower/vehicle_model/vehicle_model_interface.cpp
         nodes/mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics.cpp
-        nodes/mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_steers.cpp
+        nodes/mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_steer.cpp
         nodes/mpc_follower/qp_solver/qp_solver.cpp
 )
 
