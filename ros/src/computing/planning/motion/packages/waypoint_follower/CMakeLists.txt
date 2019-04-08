@@ -144,7 +144,8 @@ install(DIRECTORY launch/
 if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
   add_rostest_gtest(test-mpc nodes/mpc_follower/test/test_mpc.test nodes/mpc_follower/test/src/test_mpc.cpp ${MPC_FOLLOWER_SRC})
-  target_link_libraries(test-mpc ${catkin_LIBRARIES})
+#   target_link_libraries(test-mpc ${catkin_LIBRARIES})
+  target_link_libraries(test-mpc ${catkin_LIBRARIES} /usr/local/lib/libqpOASES.a)
 endif()
 
 if (CATKIN_ENABLE_TESTING)
