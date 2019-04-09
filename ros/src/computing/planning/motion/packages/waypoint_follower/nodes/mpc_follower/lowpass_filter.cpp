@@ -100,17 +100,28 @@ bool MoveAverageFilter::filt_vector(const int num, std::vector<double> &u)
     return false;
   }
   std::vector<double> filtered_u(u);
-  for (unsigned int i = 0; i < u.size(); ++i)
+  for (int i = 0; i < u.size(); ++i)
   {
     double tmp = 0.0;
+    int num_tmp = 0;
     int count = 0;
-    for (int j = -num; j < num + 1; ++j)
+    if (i - num < -0.5)
     {
-      if (i + j > -0.5 && i + j < u.size() - 0.5)
-      {
-        tmp += u[i + j];
-        ++count;
-      }
+      num_tmp = i;
+    }
+    else if (i + num > u.size() - 0.5)
+    {
+      num_tmp = (int)u.size() - i - 1;
+    }
+    else
+    {
+      num_tmp = num;
+    }
+
+    for (int j = -num_tmp; j < num_tmp + 1; ++j)
+    {
+      tmp += u[i + j];
+      ++count;
     }
     filtered_u[i] = tmp / count;
   }

@@ -536,7 +536,6 @@ void MPCFollower::callbackRefPath(const autoware_msgs::Lane::ConstPtr &msg)
     MPCUtils::calcTrajectoryYawFromXY(traj);
   }
 
-
   /* calculate curvature */
   MPCUtils::calcTrajectoryCurvature(traj, curvature_smoothing_num_);
   DEBUG_INFO("[path callback] trajectory curvature : max_k = %f, min_k = %f", *max_element(traj.k.begin(), traj.k.end()), *min_element(traj.k.begin(), traj.k.end()));
