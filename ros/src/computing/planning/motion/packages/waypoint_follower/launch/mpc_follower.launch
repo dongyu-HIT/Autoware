@@ -9,6 +9,7 @@
 		<param name="in_selfpose_name" value="/current_pose"/>
 		<param name="out_twist_name" value="/twist_raw"/>
 		<param name="out_vehicle_cmd_name" value="/mpc_vehicle_cmd"/>
+		<param name="publish_debug_values" value="true"/>
 		<rosparam command="load" file="$(find waypoint_follower)/config/mpc_follower/mpc_follower_config.yaml" />
 	</node>
 

@@ -16,7 +16,7 @@
 
 #include "mpc_follower/mpc_utils.h"
 
-double MPCUtils::intoSemicircle(const double a)
+double MPCUtils::normalizeAngle(const double a)
 {
   double b = fmod(a, 2.0 * M_PI);
   b -= 2.0 * M_PI * ((b > M_PI) - (b < -M_PI));
@@ -28,7 +28,7 @@ void MPCUtils::convertEulerAngleToMonotonic(std::vector<double> &a)
   for (unsigned int i = 1; i < a.size(); ++i)
   {
     const double da = a[i] - a[i - 1];
-    a[i] = a[i - 1] + intoSemicircle(da);
+    a[i] = a[i - 1] + normalizeAngle(da);
   }
 }
 
@@ -288,7 +288,7 @@ void MPCUtils::convertWaypointsToMPCTrajWithResample(const autoware_msgs::Lane &
 
     /* for singular point of euler angle */
     const double yaw0 = tf2::getYaw(pos0.orientation);
-    const double dyaw = intoSemicircle(tf2::getYaw(pos1.orientation) - yaw0);
+    const double dyaw = normalizeAngle(tf2::getYaw(pos1.orientation) - yaw0);
     const double yaw1 = yaw0 + dyaw;
     const double yaw = ((ref_index_dist - a) * yaw0 + a * yaw1) / ref_index_dist;
     const double vx = ((ref_index_dist - a) * twist0.linear.x + a * twist1.linear.x) / ref_index_dist;
@@ -335,7 +335,7 @@ bool MPCUtils::calcNearestPose(const MPCTrajectory &traj, const geometry_msgs::P
     const double dist_squared = dx * dx + dy * dy;
 
     /* ignore when yaw error is large, for crossing path */
-    const double err_yaw = intoSemicircle(tf2::getYaw(self_pose.orientation) - traj.yaw[i]);
+    const double err_yaw = normalizeAngle(tf2::getYaw(self_pose.orientation) - traj.yaw[i]);
     if (fabs(err_yaw) < (M_PI / 3.0))
     {
       if (dist_squared < min_dist_squared)
@@ -385,7 +385,7 @@ bool MPCUtils::calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_m
     const double dist_squared = dx * dx + dy * dy;
 
     /* ignore when yaw error is large, for crossing path */
-    const double err_yaw = intoSemicircle(my_yaw - traj.yaw[i]);
+    const double err_yaw = normalizeAngle(my_yaw - traj.yaw[i]);
     if (fabs(err_yaw) < (M_PI / 3.0))
     {
       if (dist_squared < min_dist_squared)
@@ -413,7 +413,7 @@ bool MPCUtils::calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_m
     nearest_pose.orientation = tf2::toMsg(q);
     nearest_time = traj.relative_time[nearest_index];
     min_dist_error = std::sqrt(min_dist_squared);
-    nearest_yaw_error = intoSemicircle(my_yaw - traj.yaw[nearest_index]);
+    nearest_yaw_error = normalizeAngle(my_yaw - traj.yaw[nearest_index]);
     return true;
   }
 
@@ -460,7 +460,7 @@ bool MPCUtils::calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_m
     nearest_pose.orientation = tf2::toMsg(q);
     nearest_time = traj.relative_time[nearest_index];
     min_dist_error = std::sqrt(min_dist_squared);
-    nearest_yaw_error = intoSemicircle(my_yaw - traj.yaw[nearest_index]);
+    nearest_yaw_error = normalizeAngle(my_yaw - traj.yaw[nearest_index]);
     return true;
   }
 
@@ -474,6 +474,6 @@ bool MPCUtils::calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_m
   nearest_pose.orientation = tf2::toMsg(q);
   nearest_time = alpha * traj.relative_time[nearest_index] + (1 - alpha) * traj.relative_time[second_nearest_index];
   min_dist_error = std::sqrt(b_sq - c_sq * alpha * alpha);
-  nearest_yaw_error = intoSemicircle(my_yaw - nearest_yaw);
+  nearest_yaw_error = normalizeAngle(my_yaw - nearest_yaw);
   return true;
 }

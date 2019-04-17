@@ -82,7 +82,7 @@ mpc_zero_curvature_range: 0.01
 #---------------------------------------------------------------------
 
 # steering dynamics time constant (1d approzimation) [s]
-vehicle_model_steer_tau: 0.40 # lexus: 0.2 + LPF delay
+vehicle_model_steer_tau: 0.040 # lexus: 0.2 + LPF delay
 
 # wheel base length [m]
 vehicle_model_wheelbase: 2.79 # lexus: 2.79

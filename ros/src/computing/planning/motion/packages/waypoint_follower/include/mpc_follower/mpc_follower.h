@@ -69,25 +69,26 @@ private:
   enum CtrlCmdInterface
   {
     TWIST = 0,
-    STEER = 1,
-    STEER_AND_VEL = 2,
-    ALL = 3,
+    CTRL_CMD = 1,
+    ALL = 2,
   };
-  CtrlCmdInterface ctrl_cmd_interface_; // currentlly, twist or steer_and_vel
+  CtrlCmdInterface output_interface_; // currentlly, twist or ctrl_cmd
 
   /* parameters */
   double ctrl_period_;              // deside control frequency
-  bool enable_path_smoothing_;      // flag for path smoothing
-  bool enable_yaw_recalculation_;   // recalculate yaw angle after resampling
-  int path_filter_moving_ave_num_;  // path smoothing moving average number
-  int path_smoothing_times_;        // number of times of applying smoothing filter
-  int curvature_smoothing_num_;     // for smoothing curvature calculation
-  double traj_resample_dist_;       // path resample distance span
   double steering_lpf_cutoff_hz_;   // for steering command smoothing
   double admisible_position_error_; // stop mpc calculation when lateral error is large than this value.
   double admisible_yaw_error_deg_;  // stop mpc calculation when yaw error is large than this value.
   double steer_lim_deg_;            // steering command limit [rad]
   double wheelbase_;                // only used to convert steering to twist
+
+  /* parameters for path smoothing */
+  bool enable_path_smoothing_;     // flag for path smoothing
+  bool enable_yaw_recalculation_;  // recalculate yaw angle after resampling
+  int path_filter_moving_ave_num_; // path smoothing moving average number
+  int path_smoothing_times_;       // number of times of applying smoothing filter
+  int curvature_smoothing_num_;    // for smoothing curvature calculation
+  double traj_resample_dist_;      // path resample distance span
 
   struct MPCParam
   {
@@ -136,8 +137,10 @@ private:
 
   /* debug */
   bool show_debug_info_;
+  bool publish_debug_values_;
   ros::Publisher pub_debug_filtered_traj_, pub_debug_predicted_traj_, pub_debug_values_, pub_debug_mpc_calc_time_;
-  ros::Publisher pub_steer_cmd_, pub_steercmd_raw_, pub_steer_cmd_ff_, pub_steer_, pub_laterr_, pub_yawerr_, pub_angvel_cmd_, pub_angvel_steer_, pub_angvel_cmd_ff_, pub_angvel_estimatetwist_;
+  ros::Publisher pub_steer_cmd_, pub_steer_cmd_raw_, pub_steer_cmd_ff_, pub_steer_, pub_current_vel_, pub_vel_cmd_, pub_laterr_, pub_yawerr_,
+      pub_angvel_cmd_, pub_angvel_steer_, pub_angvel_cmd_ff_, pub_angvel_estimatetwist_;
   ros::Subscriber sub_ndt_twist_;
   void convertTrajToMarker(const MPCTrajectory &traj, visualization_msgs::Marker &markers, std::string ns, double r, double g, double b);
 

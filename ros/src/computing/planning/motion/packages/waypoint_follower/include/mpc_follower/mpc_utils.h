@@ -33,7 +33,7 @@ namespace MPCUtils
 {
 
 /* Set into [-pi to pi] */
-double intoSemicircle(const double a);
+double normalizeAngle(const double a);
 
 /* Continuously connect singularities of Euler angles */
 void convertEulerAngleToMonotonic(std::vector<double> &a);

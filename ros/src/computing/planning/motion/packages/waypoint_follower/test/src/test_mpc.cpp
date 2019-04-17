@@ -26,19 +26,19 @@ public:
 	~TestSuite(){}
 };
 
-TEST(TestSuite, TestIntoSemicircle){
-    ASSERT_DOUBLE_EQ(0.0, MPCUtils::intoSemicircle(0.0));
-    ASSERT_DOUBLE_EQ(0.5, MPCUtils::intoSemicircle(0.5));
-    ASSERT_DOUBLE_EQ(-0.5, MPCUtils::intoSemicircle(-0.5));
-    ASSERT_DOUBLE_EQ(0.0, MPCUtils::intoSemicircle(2.0 * M_PI));
-    ASSERT_DOUBLE_EQ(M_PI, MPCUtils::intoSemicircle(M_PI));
-    ASSERT_DOUBLE_EQ(-M_PI, MPCUtils::intoSemicircle(-M_PI));
+TEST(TestSuite, TestNormalizeAngle){
+    ASSERT_DOUBLE_EQ(0.0, MPCUtils::normalizeAngle(0.0));
+    ASSERT_DOUBLE_EQ(0.5, MPCUtils::normalizeAngle(0.5));
+    ASSERT_DOUBLE_EQ(-0.5, MPCUtils::normalizeAngle(-0.5));
+    ASSERT_DOUBLE_EQ(0.0, MPCUtils::normalizeAngle(2.0 * M_PI));
+    ASSERT_DOUBLE_EQ(M_PI, MPCUtils::normalizeAngle(M_PI));
+    ASSERT_DOUBLE_EQ(-M_PI, MPCUtils::normalizeAngle(-M_PI));
 }
 
 TEST(TestSuite, TestConvertEulerAngleToMonotonic){
     std::vector<double> yaw;
     for (int i = -5; i < 5; ++i) {
-        double tmp = MPCUtils::intoSemicircle((double)i * M_PI);
+        double tmp = MPCUtils::normalizeAngle((double)i * M_PI);
         yaw.push_back(tmp);
     }
     ASSERT_DOUBLE_EQ(-M_PI, yaw.front());
