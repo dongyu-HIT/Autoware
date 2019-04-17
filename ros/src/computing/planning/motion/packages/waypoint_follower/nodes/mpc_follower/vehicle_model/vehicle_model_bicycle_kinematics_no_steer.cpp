@@ -16,9 +16,13 @@
 
 #include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_steer.h"
 
-KinematicsBicycleModelNoSteer::KinematicsBicycleModelNoSteer() : VehicleModelInterface(/* dim_x */ 2, /* dim_u */ 1, /* dim_y */ 2) {};
+KinematicsBicycleModelNoSteer::KinematicsBicycleModelNoSteer(const double &wheelbase, const double &steer_lim_deg)
+    : VehicleModelInterface(/* dim_x */ 2, /* dim_u */ 1, /* dim_y */ 2)
+{
+    wheelbase_ = wheelbase;
+    steer_lim_deg_ = steer_lim_deg;
+};
 KinematicsBicycleModelNoSteer::~KinematicsBicycleModelNoSteer(){};
-
 void KinematicsBicycleModelNoSteer::calculateDiscreteMatrix(Eigen::MatrixXd &Ad, Eigen::MatrixXd &Bd,
                                                      Eigen::MatrixXd &Cd, Eigen::MatrixXd &Wd, double &dt)
 {
@@ -31,19 +35,19 @@ void KinematicsBicycleModelNoSteer::calculateDiscreteMatrix(Eigen::MatrixXd &Ad,
         delta_r = (steer_lim_deg_ * DEG2RAD) * (double)sign(delta_r);
     double cos_delta_r_squared_inv = 1 / (cos(delta_r) * cos(delta_r));
 
-    Ad << 0.0, vel_,
+    Ad << 0.0, velocity_,
           0.0, 0.0;
     Eigen::MatrixXd I = Eigen::MatrixXd::Identity(dim_x_, dim_x_);
     Ad = I + Ad * dt;
 
-    Bd << 0.0, vel_ / wheelbase_ * cos_delta_r_squared_inv;
+    Bd << 0.0, velocity_ / wheelbase_ * cos_delta_r_squared_inv;
     Bd *= dt;
 
     Cd << 1.0, 0.0,
           0.0, 1.0;
 
     Wd << 0.0,
-        -vel_ / wheelbase_ * delta_r * cos_delta_r_squared_inv;
+        -velocity_ / wheelbase_ * delta_r * cos_delta_r_squared_inv;
     Wd *= dt;
 }
 
@@ -51,13 +55,3 @@ void KinematicsBicycleModelNoSteer::calculateReferenceInput(Eigen::MatrixXd &Ure
 {
     Uref(0, 0) = std::atan(wheelbase_ * curvature_);
 }
-void KinematicsBicycleModelNoSteer::calculateReferenceInput(Eigen::MatrixXd &Uref, const double &curvature)
-{
-    Uref(0, 0) = std::atan(wheelbase_ * curvature);
-}
-void KinematicsBicycleModelNoSteer::setParams(double &wheelbase, double &steer_lim_deg) {
-    wheelbase_ = wheelbase;
-    steer_lim_deg_ = steer_lim_deg;
-}
-void KinematicsBicycleModelNoSteer::setVel(const double &vel) { vel_ = vel; };
-void KinematicsBicycleModelNoSteer::setCurvature(const double &curvature) { curvature_ = curvature; };

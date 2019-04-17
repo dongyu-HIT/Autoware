@@ -14,11 +14,18 @@
  * limitations under the License.
  */
 
-#include "mpc_follower/vehicle_model/vehicle_model_interface.h"
+#include "mpc_follower/qp_solver/qp_solver_unconstr.h"
 
-VehicleModelInterface::VehicleModelInterface(int dim_x, int dim_u, int dim_y) : dim_x_(dim_x), dim_u_(dim_u), dim_y_(dim_y) {};
-int VehicleModelInterface::getDimX() { return dim_x_; };
-int VehicleModelInterface::getDimU() { return dim_u_; };
-int VehicleModelInterface::getDimY() { return dim_y_; };
-void VehicleModelInterface::setVelocity(const double &velocity) { velocity_ = velocity; };
-void VehicleModelInterface::setCurvature(const double &curvature) { curvature_ = curvature; };
+QPSolverEigenLeastSquare::QPSolverEigenLeastSquare(){};
+QPSolverEigenLeastSquare::~QPSolverEigenLeastSquare(){};
+bool QPSolverEigenLeastSquare::solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const Eigen::MatrixXd &A,
+                                        const Eigen::MatrixXd &lb, const Eigen::MatrixXd &ub, const Eigen::MatrixXd &lbA,
+                                        const Eigen::MatrixXd &ubA, Eigen::VectorXd &U)
+{
+     if (std::fabs(Hmat.determinant()) < 1.0E-9)
+          return false;
+
+     U = -Hmat.inverse() * fvec;
+
+     return true;
+};

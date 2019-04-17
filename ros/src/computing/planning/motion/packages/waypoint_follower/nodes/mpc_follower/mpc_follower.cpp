@@ -49,27 +49,75 @@ MPCFollower::MPCFollower()
   pnh_.param("steer_lim_deg", steer_lim_deg_, double(35.0));
   pnh_.param("vehicle_model_wheelbase", wheelbase_, double(2.9));
 
-  /* vehicle model initialize */
-  double steer_tau;
-  pnh_.param("vehicle_model_steer_tau", steer_tau, double(0.1));
-  vehicle_model_.setParams(wheelbase_, steer_tau, steer_lim_deg_); // with 1st order steering dynamics
-  // vehicle_model_.setParams(wheelbase_, steer_lim_deg_); // without steering dynamics
 
-  /* set control command interface */
+  /* vehicle model setup */
+  std::string vehicle_model_type_;
+  pnh_.param("vehicle_model_type", vehicle_model_type_, std::string("kinematics"));
+  if (vehicle_model_type_ == "kinematics")
+  {
+    double steer_tau;
+    pnh_.param("vehicle_model_steer_tau", steer_tau, double(0.1));
+    vehicle_model_ptr_ = std::make_shared<KinematicsBicycleModel>(wheelbase_, steer_lim_deg_, steer_tau);
+    ROS_INFO("[MPC] set vehicle_model = kinematics");
+  }
+  else if (vehicle_model_type_ == "kinematics_no_steer")
+  {
+    vehicle_model_ptr_ = std::make_shared<KinematicsBicycleModelNoSteer>(wheelbase_, steer_lim_deg_);
+    ROS_INFO("[MPC] set vehicle_model = kinematics_no_steer");
+  }
+  else if (vehicle_model_type_ == "dynamics")
+  {
+    // write me
+    ROS_INFO("[MPC] set vehicle_model = dynamics");
+  } else {
+    ROS_ERROR("[MPC] vehicle_model_type is undefined");
+  }
+
+
+  /* QP solver setup */
+  std::string qp_solver_type_;
+  pnh_.param("qp_solver_type", qp_solver_type_, std::string("unconstraint_fast"));
+  if (qp_solver_type_ == "unconstraint")
+  {
+    qpsolver_ptr_ = std::make_shared<QPSolverEigenLeastSquare>();
+    ROS_INFO("[MPC] set qp solver = unconstraint");
+  }
+  else if (qp_solver_type_ == "unconstraint_fast")
+  {
+    qpsolver_ptr_ = std::make_shared<QPSolverEigenLeastSquareLLT>();
+    ROS_INFO("[MPC] set qp solver = unconstraint_fast");
+  }
+  else if (qp_solver_type_ == "qpoases_hotstart")
+  {
+    int max_iter = 200;
+    qpsolver_ptr_ = std::make_shared<QPSolverQpoasesHotstart>(max_iter);
+    ROS_INFO("[MPC] set qp solver = qpoases_hotstart");
+  }
+  else
+  {
+    ROS_ERROR("[MPC] qp_solver_type is undefined");
+  }
+
+  /* output interface setup */
   std::string output_interface_string;
   pnh_.param("output_interface", output_interface_string, std::string("all"));
   if (output_interface_string == "twist")
+  {
     output_interface_ = CtrlCmdInterface::TWIST;
+  }
   else if (output_interface_string == "ctrl_cmd")
+  {
     output_interface_ = CtrlCmdInterface::CTRL_CMD;
+  }
   else if (output_interface_string == "all")
+  {
     output_interface_ = CtrlCmdInterface::ALL;
-  else {
+  }
+  else
+  {
     ROS_ERROR("output interface is inappropriate. set ALL.");
     output_interface_ = CtrlCmdInterface::ALL;
   }
-    
-  
 
   steer_cmd_prev_ = 0.0;
 
@@ -78,9 +126,6 @@ MPCFollower::MPCFollower()
   pnh_.param("steering_lpf_cutoff_hz", steering_lpf_cutoff_hz, double(3.0));
   lpf_steering_cmd_.initialize(ctrl_period_, steering_lpf_cutoff_hz);
 
-  /* initialize qp solver */
-  int max_qp_iter = 200;
-  qpsolver_.init(max_qp_iter);
 
   /* set up ros system */
   timer_control_ = nh_.createTimer(ros::Duration(ctrl_period_), &MPCFollower::timerCallback, this);
@@ -121,6 +166,11 @@ void MPCFollower::timerCallback(const ros::TimerEvent &te)
 {
 
   /* check flags */
+  if (vehicle_model_ptr_ == nullptr || qpsolver_ptr_ == nullptr)
+  {
+    DEBUG_INFO("[MPC] vehicle_model = %d, qp_solver = %d", !(vehicle_model_ptr_ == nullptr), !(qpsolver_ptr_ == nullptr));
+    return;
+  }
   if (ref_traj_.size() == 0 || !my_position_ok_ || !my_velocity_ok_ || !my_steering_ok_)
   {
     DEBUG_INFO("[MPC] MPC is not solved. ref_traj_.size() = %d, my_position_ok_ = %d,  my_velocity_ok_ = %d,  my_steering_ok_ = %d",
@@ -157,9 +207,9 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   static const double RAD2DEG = 180.0 / M_PI;
   static const double DEG2RAD = M_PI / 180.0;
   const int N = mpc_param_.n;
-  const int DIM_X = vehicle_model_.getDimX();
-  const int DIM_U = vehicle_model_.getDimU();
-  const int DIM_Y = vehicle_model_.getDimY();
+  const int DIM_X = vehicle_model_ptr_->getDimX();
+  const int DIM_U = vehicle_model_ptr_->getDimU();
+  const int DIM_Y = vehicle_model_ptr_->getDimY();
 
   const double current_yaw = tf2::getYaw(vehicle_status_.pose.orientation);
 
@@ -266,9 +316,9 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
     const double ref_vx_squared = ref_vx * ref_vx;
 
     /* get discrete state matrix A, B, C, W */
-    vehicle_model_.setVel(ref_vx);
-    vehicle_model_.setCurvature(ref_k);
-    vehicle_model_.calculateDiscreteMatrix(Ad, Bd, Cd, Wd, mpc_param_.dt);
+    vehicle_model_ptr_->setVelocity(ref_vx);
+    vehicle_model_ptr_->setCurvature(ref_k);
+    vehicle_model_ptr_->calculateDiscreteMatrix(Ad, Bd, Cd, Wd, mpc_param_.dt);
 
     Q_adaptive = Q;
     R_adaptive = R;
@@ -303,9 +353,9 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
 
     /* get reference input (feed-forward) */
     if (std::fabs(ref_k) < mpc_param_.zero_curvature_range)
-      vehicle_model_.calculateReferenceInput(Uref, 0.0); // with 0 curvature
+      Uref(0, 0) = 0.0; // with 0 curvature
     else
-      vehicle_model_.calculateReferenceInput(Uref); // with curvature set above
+      vehicle_model_ptr_->calculateReferenceInput(Uref); // with curvature set above
 
     Urefex.block(i * DIM_U, 0, DIM_U, 1) = Uref;
   }
@@ -339,9 +389,15 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &steer_cmd)
   H(0, 0) += mpc_resampled_ref_traj.vx[0] * mpc_resampled_ref_traj.vx[0] * mpc_param_.weight_lat_jerk;
   f(0, 0) -= 2.0 * mpc_resampled_ref_traj.vx[0] * mpc_resampled_ref_traj.vx[0] * mpc_param_.weight_lat_jerk * steer_cmd_prev_;
 
+  Eigen::MatrixXd A = Eigen::MatrixXd::Zero(1, 1);
+  Eigen::MatrixXd lb = Eigen::MatrixXd::Zero(1, 1);
+  Eigen::MatrixXd ub = Eigen::MatrixXd::Zero(1, 1);
+  Eigen::MatrixXd lbA = Eigen::MatrixXd::Zero(1, 1);
+  Eigen::MatrixXd ubA = Eigen::MatrixXd::Zero(1, 1);
+
   auto start = std::chrono::system_clock::now();
   const double u_lim = steer_lim_deg_ * DEG2RAD;
-  if (!qpsolver_.solve(H, f.transpose(), u_lim, Uex)){
+  if (!qpsolver_ptr_->solve(H, f.transpose(), A, lb, ub, lbA, ubA, Uex)){
     ROS_WARN("[MPC] qp solver error");
     return false;
   }

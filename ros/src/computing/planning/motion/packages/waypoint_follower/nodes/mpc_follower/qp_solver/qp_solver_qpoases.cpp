@@ -14,43 +14,21 @@
  * limitations under the License.
  */
 
-#include "mpc_follower/qp_solver/qp_solver.h"
-#include <chrono>
+#include "mpc_follower/qp_solver/qp_solver_qpoases.h"
 
-QPSolverEigenLeastSquare::QPSolverEigenLeastSquare(){};
-void QPSolverEigenLeastSquare::init(const int max_iter){};
-bool QPSolverEigenLeastSquare::solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const double &max_u, Eigen::VectorXd &U)
+QPSolverQpoasesHotstart::QPSolverQpoasesHotstart(const int max_iter)
 {
-     if (std::fabs(Hmat.determinant()) < 1.0E-9)
-          return false;
-
-     U = -Hmat.inverse() * fvec;
-
-     return true;
-}
-
-QPSolverEigenLeastSquareLLT::QPSolverEigenLeastSquareLLT(){};
-void QPSolverEigenLeastSquareLLT::init(const int max_iter){};
-bool QPSolverEigenLeastSquareLLT::solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const double &max_u, Eigen::VectorXd &U)
-{
-     if (std::fabs(Hmat.determinant()) < 1.0E-9)
-          return false;
-
-     U = -Hmat.llt().solve(fvec);
-
-     return true;
-};
-
-QPSolverQpoasesHotstart::QPSolverQpoasesHotstart(){};
-void QPSolverQpoasesHotstart::init(const int max_iter)
-{
-     is_init_ = true;
      max_iter_ = max_iter;
-}
+};
+QPSolverQpoasesHotstart::~QPSolverQpoasesHotstart(){};
 
-bool QPSolverQpoasesHotstart::solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const double &max_u, Eigen::VectorXd &U)
+bool QPSolverQpoasesHotstart::solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const Eigen::MatrixXd &A,
+                                    const Eigen::MatrixXd &lb, const Eigen::MatrixXd &ub, const Eigen::MatrixXd &lbA,
+                                    const Eigen::MatrixXd &ubA, Eigen::VectorXd &U)
 {
      USING_NAMESPACE_QPOASES
+
+     double max_u = 35.0 * 3.1415 / 180.0;
 
      int max_iter = max_iter_;
 
@@ -104,7 +82,6 @@ bool QPSolverQpoasesHotstart::solve(const Eigen::MatrixXd &Hmat, const Eigen::Ma
           if (ret != SUCCESSFUL_RETURN)
                return false;
      }
-     
 
      solver_.getPrimalSolution(result);
 
@@ -114,4 +91,4 @@ bool QPSolverQpoasesHotstart::solve(const Eigen::MatrixXd &Hmat, const Eigen::Ma
      }
 
      return true;
-}
+};

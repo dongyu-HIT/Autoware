@@ -26,23 +26,15 @@
 
 class KinematicsBicycleModel : public VehicleModelInterface
 {
-  public:
-    KinematicsBicycleModel();
-    ~KinematicsBicycleModel();
+public:
+  KinematicsBicycleModel(const double &wheelbase_, const double &steer_lim_deg, const double &steer_tau);
+  ~KinematicsBicycleModel();
 
-    void calculateDiscreteMatrix(Eigen::MatrixXd &Ad, Eigen::MatrixXd &Bd, Eigen::MatrixXd &Cd, Eigen::MatrixXd &Wd, double &dt) override;
-    void calculateReferenceInput(Eigen::MatrixXd &Uref) override;
-    
-    void calculateReferenceInput(Eigen::MatrixXd &Uref, const double &curvature);
-    void setParams(double &wheelbase, double &steer_tau, double &steer_lim_deg);
-    void setVel(const double &vel);
-    void setCurvature(const double &curvature);
+  void calculateDiscreteMatrix(Eigen::MatrixXd &Ad, Eigen::MatrixXd &Bd, Eigen::MatrixXd &Cd, Eigen::MatrixXd &Wd, double &dt) override;
+  void calculateReferenceInput(Eigen::MatrixXd &Uref) override;
 
-  private:
-    double wheelbase_;
-    double steer_tau_;
-    double steer_lim_deg_;
-
-    double vel_;
-    double curvature_;
+private:
+  double wheelbase_;
+  double steer_lim_deg_;
+  double steer_tau_;
 };

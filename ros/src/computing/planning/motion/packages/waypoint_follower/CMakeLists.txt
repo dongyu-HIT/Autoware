@@ -102,7 +102,9 @@ set(MPC_FOLLOWER_SRC
         nodes/mpc_follower/vehicle_model/vehicle_model_interface.cpp
         nodes/mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics.cpp
         nodes/mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_steer.cpp
-        nodes/mpc_follower/qp_solver/qp_solver.cpp
+        nodes/mpc_follower/qp_solver/qp_solver_unconstr.cpp
+        nodes/mpc_follower/qp_solver/qp_solver_unconstr_fast.cpp
+        nodes/mpc_follower/qp_solver/qp_solver_qpoases.cpp
 )
 
 add_executable(mpc_follower nodes/mpc_follower/mpc_follower.cpp ${MPC_FOLLOWER_SRC})
@@ -117,11 +119,6 @@ target_link_libraries(mpc_waypoints_converter ${catkin_LIBRARIES})
 add_executable(twist_pub nodes/mpc_follower/twist_pub.cpp)
 add_dependencies(twist_pub ${catkin_EXPORTED_TARGETS})
 target_link_libraries(twist_pub ${catkin_LIBRARIES})
-
-
-add_executable(gazebo_twist_calculator nodes/mpc_follower/gazebo_twist_calculator.cpp)
-add_dependencies(gazebo_twist_calculator ${catkin_EXPORTED_TARGETS})
-target_link_libraries(gazebo_twist_calculator ${catkin_LIBRARIES})
 
 ## Install executables and/or libraries
 install(TARGETS libwaypoint_follower pure_pursuit wf_simulator twist_filter twist_gate mpc_follower mpc_waypoints_converter

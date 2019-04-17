@@ -44,8 +44,9 @@
 #include "mpc_follower/lowpass_filter.h"
 #include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics.h"
 #include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_steer.h"
-#include "mpc_follower/qp_solver/qp_solver.h"
-#include "qpOASES.hpp"
+#include "mpc_follower/qp_solver/qp_solver_unconstr.h"
+#include "mpc_follower/qp_solver/qp_solver_unconstr_fast.h"
+#include "mpc_follower/qp_solver/qp_solver_qpoases.h"
 
 class MPCFollower
 {
@@ -59,11 +60,11 @@ private:
   ros::Subscriber sub_ref_path_, sub_twist_, sub_pose_, sub_vehicle_status_;
   ros::Timer timer_control_;
 
-  MPCTrajectory ref_traj_;                // reference trajectory for mpc
-  Butterworth2dFilter lpf_steering_cmd_;  // steering command lowpass filter
-  KinematicsBicycleModel vehicle_model_;  // vehicle model
-  // KinematicsBicycleModelNoSteer vehicle_model_;
-  autoware_msgs::Lane current_waypoints_; // current received waypoints
+  MPCTrajectory ref_traj_;                                   // reference trajectory for mpc
+  Butterworth2dFilter lpf_steering_cmd_;                     // steering command lowpass filter
+  autoware_msgs::Lane current_waypoints_;                    // current received waypoints
+  std::shared_ptr<VehicleModelInterface> vehicle_model_ptr_; // vehicle model for mpc
+  std::shared_ptr<QPSolver> qpsolver_ptr_;                   // qp solver for mpc
 
   /* set vehicle control command interface */
   enum CtrlCmdInterface
@@ -72,9 +73,9 @@ private:
     CTRL_CMD = 1,
     ALL = 2,
   };
-  CtrlCmdInterface output_interface_; // currentlly, twist or ctrl_cmd
+  CtrlCmdInterface output_interface_; 
 
-  /* parameters */
+  /* parameters for control*/
   double ctrl_period_;              // deside control frequency
   double steering_lpf_cutoff_hz_;   // for steering command smoothing
   double admisible_position_error_; // stop mpc calculation when lateral error is large than this value.
@@ -114,9 +115,6 @@ private:
   };
   VehicleStatus vehicle_status_; // updated by topic callback
 
-  // QPSolverEigenLeastSquareLLT qpsolver_;
-  QPSolverQpoasesHotstart qpsolver_;
-
   double steer_cmd_prev_;
 
   /* flags */
@@ -146,7 +144,5 @@ private:
 
   geometry_msgs::TwistStamped estimate_twist_;
   ros::Subscriber sub_estimate_twist_;
-  void callbackEstimateTwist(const geometry_msgs::TwistStamped &msg) {
-    estimate_twist_ = msg;
-  }
+  void callbackEstimateTwist(const geometry_msgs::TwistStamped &msg) { estimate_twist_ = msg; }
 };

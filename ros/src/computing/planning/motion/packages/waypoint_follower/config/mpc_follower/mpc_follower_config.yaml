@@ -1,8 +1,8 @@
-#---------------------------------------------------------------------
+# \#---------------------------------------------------------------------
 # debug option
 #---------------------------------------------------------------------
 
-show_debug_info: true
+show_debug_info: false
 
 
 #---------------------------------------------------------------------
@@ -48,6 +48,13 @@ steer_lim_deg: 40.0
 # MPC algorithm parameters
 #---------------------------------------------------------------------
 
+# qp_solver_type: "unconstraint"
+qp_solver_type: "unconstraint_fast"
+# qp_solver_type: "qpoases_hotstart"
+
+vehicle_model_type: "kinematics"
+# vehicle_model_type: "kinematics_no_steer"
+
 # total prediction step
 mpc_n: 70
 
@@ -82,7 +89,8 @@ mpc_zero_curvature_range: 0.01
 #---------------------------------------------------------------------
 
 # steering dynamics time constant (1d approzimation) [s]
-vehicle_model_steer_tau: 0.040 # lexus: 0.2 + LPF delay
+vehicle_model_steer_tau: 0.40 # lexus: 0.2 + LPF delay
 
 # wheel base length [m]
 vehicle_model_wheelbase: 2.79 # lexus: 2.79
+# 

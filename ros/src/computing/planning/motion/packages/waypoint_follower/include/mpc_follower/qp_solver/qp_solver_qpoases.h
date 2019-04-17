@@ -15,25 +15,26 @@
  */
 
 #pragma once
+
 #include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/LU>
-#include "mpc_follower/vehicle_model/vehicle_model_interface.h"
+#include <qpOASES.hpp>
+#include <cmath>
 
-/* 
-   The trajectory following error dynamics of the vehicle.
-   This is valid in the vicinity of the target trajectory.
-*/
+#include "mpc_follower/qp_solver/qp_solver_interface.h"
 
-class KinematicsBicycleModelNoSteer : public VehicleModelInterface
+class QPSolverQpoasesHotstart : public QPSolver
 {
-public:
-  KinematicsBicycleModelNoSteer(const double &wheelbase, const double &steer_lim_deg);
-  ~KinematicsBicycleModelNoSteer();
-  
-  void calculateDiscreteMatrix(Eigen::MatrixXd &Ad, Eigen::MatrixXd &Bd, Eigen::MatrixXd &Cd, Eigen::MatrixXd &Wd, double &dt) override;
-  void calculateReferenceInput(Eigen::MatrixXd &Uref) override;
-
 private:
-  double wheelbase_;
-  double steer_lim_deg_;
+  bool is_init_;
+  int max_iter_;
+  qpOASES::SQProblem solver_;
+
+public:
+  QPSolverQpoasesHotstart(const int max_iter);
+  ~QPSolverQpoasesHotstart();
+  bool solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const Eigen::MatrixXd &A,
+             const Eigen::MatrixXd &lb, const Eigen::MatrixXd &ub, const Eigen::MatrixXd &lbA,
+             const Eigen::MatrixXd &ubA, Eigen::VectorXd &U) override;
 };
