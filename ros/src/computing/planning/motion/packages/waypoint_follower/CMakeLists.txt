@@ -105,9 +105,7 @@ set(MPC_FOLLOWER_SRC
         nodes/mpc_follower/qp_solver/qp_solver.cpp
 )
 
-add_executable(mpc_follower
-        nodes/mpc_follower/mpc_follower.cpp
-        ${MPC_FOLLOWER_SRC})
+add_executable(mpc_follower nodes/mpc_follower/mpc_follower.cpp ${MPC_FOLLOWER_SRC})
 add_dependencies(mpc_follower ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 # target_link_libraries(mpc_follower ${catkin_LIBRARIES})
 target_link_libraries(mpc_follower ${catkin_LIBRARIES} /usr/local/lib/libqpOASES.a) #qpOASES-3.2.1#
@@ -145,22 +143,20 @@ install(DIRECTORY config/
 
 
 ## TESTS
-if(CATKIN_ENABLE_TESTING)
-  find_package(rostest REQUIRED)
-  add_rostest_gtest(test-mpc nodes/mpc_follower/test/test_mpc.test nodes/mpc_follower/test/src/test_mpc.cpp ${MPC_FOLLOWER_SRC})
-#   target_link_libraries(test-mpc ${catkin_LIBRARIES})
-  target_link_libraries(test-mpc ${catkin_LIBRARIES} /usr/local/lib/libqpOASES.a)
-endif()
+# if(CATKIN_ENABLE_TESTING)
+#   find_package(rostest REQUIRED)
+#   add_rostest_gtest(test-mpc nodes/mpc_follower/test/test_mpc.test nodes/mpc_follower/test/src/test_mpc.cpp ${MPC_FOLLOWER_SRC})
+# #   target_link_libraries(test-mpc ${catkin_LIBRARIES})
+#   target_link_libraries(test-mpc ${catkin_LIBRARIES} /usr/local/lib/libqpOASES.a)
+# endif()
 
 if (CATKIN_ENABLE_TESTING)
     find_package(rostest REQUIRED)
-    add_rostest_gtest(test-twist_gate
-      test/test_twist_gate.test
-      test/src/test_twist_gate.cpp
-      nodes/twist_gate/twist_gate.cpp
-    )
-    add_dependencies(test-twist_gate
-      ${catkin_EXPORTED_TARGETS})
-    target_link_libraries(test-twist_gate
-      ${catkin_LIBRARIES})
+    add_rostest_gtest(test-twist_gate test/test_twist_gate.test test/src/test_twist_gate.cpp  nodes/twist_gate/twist_gate.cpp)
+    add_dependencies(test-twist_gate ${catkin_EXPORTED_TARGETS})
+    target_link_libraries(test-twist_gate ${catkin_LIBRARIES})
+
+    add_rostest_gtest(test-mpc test/test_mpc.test test/src/test_mpc.cpp ${MPC_FOLLOWER_SRC})
+    add_dependencies(test-mpc ${catkin_EXPORTED_TARGETS})
+    target_link_libraries(test-mpc ${catkin_LIBRARIES} /usr/local/lib/libqpOASES.a)
 endif ()
