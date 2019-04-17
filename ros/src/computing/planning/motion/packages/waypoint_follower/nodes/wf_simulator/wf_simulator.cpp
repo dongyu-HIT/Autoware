@@ -26,6 +26,7 @@
 #include <random>
 
 #include "autoware_msgs/VehicleCmd.h"
+#include "autoware_msgs/VehicleStatus.h"
 #include "waypoint_follower/libwaypoint_follower.h"
 
 namespace
@@ -46,6 +47,7 @@ geometry_msgs::Twist current_velocity_;
 
 ros::Publisher odometry_publisher_;
 ros::Publisher velocity_publisher_;
+ros::Publisher vehicle_status_publisher_;
 
 int32_t closest_waypoint_ = -1;
 double position_error_;
@@ -235,9 +237,15 @@ void publishOdometry()
   ts.twist.linear.x = vx;
   ts.twist.angular.z = vth;
 
+  autoware_msgs::VehicleStatus vs;
+  vs.header = h;
+  vs.angle = steering_angle_;
+  vs.speed = vx;
+
   // publish the message
   odometry_publisher_.publish(ps);
   velocity_publisher_.publish(ts);
+  vehicle_status_publisher_.publish(vs);
 
   last_time = current_time;
 }
@@ -267,6 +275,7 @@ int main(int argc, char** argv)
   // publish topic
   odometry_publisher_ = nh.advertise<geometry_msgs::PoseStamped>("sim_pose", 10);
   velocity_publisher_ = nh.advertise<geometry_msgs::TwistStamped>("sim_velocity", 10);
+  vehicle_status_publisher_ = nh.advertise<autoware_msgs::VehicleStatus>("sim_vehicle_status", 10);
 
   // subscribe topic
   ros::Subscriber cmd_subscriber =
