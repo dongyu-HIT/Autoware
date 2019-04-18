@@ -9,6 +9,9 @@
 	<!-- length span for resampling trajectory [m] -->
 	<arg name="traj_resample_dist" default="0.1"/>
 
+	 <!-- recalculate yaw angle after resampling -->
+	 <arg name="enable_yaw_recalculation" default="true"/>
+
 	<!-- stop mpc calculation when error is larger than the following value -->
 	<arg name="admisible_position_error" default="5.0"/>
 	<arg name="admisible_yaw_error_deg" default="90.0"/>
@@ -99,6 +102,7 @@
 
 
 			<param name="show_debug_info" value="$(arg show_debug_info)"/>
+			<param name="enable_yaw_recalculation" value="$(arg enable_yaw_recalculation)"/>
 			<param name="enable_path_smoothing" value="$(arg enable_path_smoothing)"/>
 			<param name="path_filter_moving_ave_num" value="$(arg path_filter_moving_ave_num)"/>
 			<param name="curvature_smoothing_num" value="$(arg curvature_smoothing_num)"/>

@@ -549,6 +549,7 @@ void MPCFollower::callbackRefPath(const autoware_msgs::Lane::ConstPtr &msg)
   if (enable_yaw_recalculation_)
   {
     MPCUtils::calcTrajectoryYawFromXY(traj);
+    MPCUtils::convertEulerAngleToMonotonic(traj.yaw);
   }
 
   /* calculate curvature */

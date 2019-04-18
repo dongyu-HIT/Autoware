@@ -468,7 +468,17 @@ bool MPCUtils::calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_m
   const double alpha = 0.5 * (c_sq - a_sq + b_sq) / c_sq;
   nearest_pose.position.x = alpha * traj.x[nearest_index] + (1 - alpha) * traj.x[second_nearest_index];
   nearest_pose.position.y = alpha * traj.y[nearest_index] + (1 - alpha) * traj.y[second_nearest_index];
-  const double nearest_yaw = alpha * traj.yaw[nearest_index] + (1 - alpha) * traj.yaw[second_nearest_index];
+  const double nearest_yaw_old = alpha * traj.yaw[nearest_index] + (1 - alpha) * traj.yaw[second_nearest_index];
+  double tmp_yaw_err = traj.yaw[nearest_index] - traj.yaw[second_nearest_index];
+  if (tmp_yaw_err > M_PI)
+  {
+    tmp_yaw_err -= 2.0 * M_PI;
+  }
+  else if (tmp_yaw_err < -M_PI)
+  {
+    tmp_yaw_err += 2.0 * M_PI;
+  }
+  const double nearest_yaw = traj.yaw[second_nearest_index] + alpha * tmp_yaw_err;
   tf2::Quaternion q;
   q.setRPY(0, 0, nearest_yaw);
   nearest_pose.orientation = tf2::toMsg(q);

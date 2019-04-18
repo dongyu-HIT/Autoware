@@ -1759,7 +1759,7 @@ params :
       desc  : mpc_weight_endpoint_Q_scale
       label : endpoint Q weight scale
       min   : 0.0
-      max   : 50.0
+      max   : 100.0
       v     : 5.0
       cmd_param :
         dash        : ''
