@@ -2,26 +2,22 @@
 Waypoints follower based on model predictive control (MPC) 
 
 # Notation
-For now, the operation is limited to the following conditions.
-- functional limits
-    - no obstacle avoidance or stop (subscrive /base_waypoints directly)
-
 - vehicle
-    - gazebo
-    - Lexus RX450h (under 20km/h)
+    - gazebo (simulation)
+    - Lexus RX450h (under 40km/h)
 
 # Input and Output
 - input
-    - /base_waypoints : reference waypoints
+    - /mpc_waypoints : reference waypoints (generated in mpc_waypoints_converter)
     - /current_pose : self pose
-    - /vehicle_status : vehicle information (can velocity, steering angle)
+    - /vehicle_status : vehicle information (as velocity and steering angle source)
 - output
     - /twist_raw : command for vehicle
     - /ctrl_cmd : command for vehicle
 
 
 
-Which command to output is determined by the parameter `ctrl_cmd_interface`. Default is for both.
+The output interface is determined by the parameter `ctrl_cmd_interface`. Default is for both.
 
 
 
@@ -44,13 +40,16 @@ video link:
 
 https://www.youtube.com/watch?v=4IO1zxsY4wU&t=18s
 
-# Functions
+# Nodes
 
-This node includes 
-- path filter : apply path smoothing filter to reduce waypoint noise. For now, moving average filter is used. 
-- mpc solver : solve the optimization problem of MPC. For now, the least square method is used, so constraints are not supported.
-    - vehicle model : to generate MPC matrix. For now, bicycle kinematics model is only available.
-- lowpass filter : 2nd-order butterworth filter 
+- mpc_waypoints_converter
+    - to generate mpc_waypoints, which includes the path behind the self position.
+- mpc_follower
+    - to calculate steering and velocity command to follow the reference waypoints. It includes following functions.
+        - path filter : apply path smoothing filter to reduce waypoint noise.
+        - mpc solver : solve the optimization problem of MPC.
+        - lowpass filter : applied to the mpc output: 2nd-order butterworth filter 
+
 
 # Parameter description
 
@@ -62,7 +61,7 @@ This node includes
 |ctrl_period|double|control period [s]|
 |traj_resample_dist|double|length for resampling trajectory [m]|
 |enable_path_smoothing|bool|path smoothing flug. should be true when uses path resampling to reduce resampling noise.|
-|enable_yaw_recalculation|bool|recalculate yaw angle after resampling. Set true if yaw in received waypoints has noise.|
+|enable_yaw_recalculation|bool|recalculate yaw angle after resampling. Set true if yaw in received waypoints is noisy.|
 |path_filter_moving_ave_num|double|for path smoothing filter, moving average number|
 |path_smoothing_times|int|Number of times tof applying path smoothing filter|
 |curvature_smoothing_num|double|curvature is calculated from three points: p(i-num), p(i), p(i+num). larger num makes less noisy values.|
@@ -74,19 +73,37 @@ This node includes
 
 |Name|Type|Description|
 |:---|:---|:---|
+|qp_solver_type|string|QP solver option. descrived below in detail.|
+|vehicle_model_type|string|vehicle model option. descrived below in detail.|
 |mpc_n|double|total prediction step for MPC|
 |mpc_dt|double|prediction period for one step [s] for MPC|
 |mpc_weight_lat_error|double|weight for lateral error for MPC|
 |mpc_weight_heading_error|double|weight for heading error for MPC|
-|mpc_weight_steering_input|double|weight for steering error (actual steer - reference steer) for MPC|
-|mpc_weight_steering_input_vel_coeff|double|velocity coefficient of weight for steering error (actual steer - reference steer) for MPC|
-|mpc_delay_compensation_time|double |time delay compensation for MPC<br>  (Since this is effective under severe assumptions, large values are not acceptable. Set smaller than 0.05s)|
-|mpc_zero_curvature_range|double|reference curvature is set to zeto when it is smaller than this valuse for noise reduction for MPC|
+|mpc_weight_heading_error_squared_vel_coeff|double|weight for heading error * velocity for MPC|
+|mpc_weight_steering_input|double|weight for steering error (steer command - reference steer) for MPC|
+|mpc_weight_steering_input_squared_vel_coeff|double|weight for steering error (steer command - reference steer) * velocity for MPC|
+|mpc_weight_lat_jerk|double|weight for lateral jerk (steer(i) - steer(i-1)) * velocity for MPC|
+|mpc_weight_endpoint_Q_scale|double|endpoint error weight to improve mpc stability|
+|mpc_zero_ff_steer_deg|double|feedforward angle is set to zero when it is smaller than this value, for reference path noise|
 
-## vehicle model
+## vehicle
 
 |Name|Type|Description|
 |:---|:---|:---|
 |vehicle_model_steer_tau|double|steering dynamics time constant (1d approzimation) [s] for vehicle model|
 |vehicle_model_wheelbase|double|wheel base length [m] for vehicle model|
-|vehicle_model_steer_lim_deg|double|steering angle limit [deg] for vehicle model|
+|steer_lim_deg|double|steering angle limit [deg] for vehicle model. This is also used for QP constraint.|
+
+## QP solver type
+
+currently, the options are
+- unconstraint : use least square method to solve unconstraint QP with eigen.
+- unconstraint_fast : same as above. Faster, but lower accuracy for optimization.
+- qpoases_hotstart : use QPOASES with constrainted QP.
+
+## vehicle model type
+
+- kinematics : kinematics model with steering 1d-order delay.
+- kinematics_no_delay : kinematics model without steering delay.
+
+

@@ -73,14 +73,21 @@ bool QPSolverQpoasesHotstart::solve(const Eigen::MatrixXd &Hmat, const Eigen::Ma
           solver_ = qpOASES::SQProblem(kNumOfoffsetRows, kNumOfoffsetRows);
           auto ret = solver_.init(h_matrix, g_matrix, a_constraint_matirx, lower_bound, upper_bound, lower_bound, upper_bound, max_iter);
           if (ret != SUCCESSFUL_RETURN)
+          {
+               printf("[QPOASES] not successfully solved in init()\n");
                return false;
+          }
+
           is_init_ = false;
      }
      else
      {
           auto ret = solver_.hotstart(h_matrix, g_matrix, a_constraint_matirx, lower_bound, upper_bound, lower_bound, upper_bound, max_iter);
           if (ret != SUCCESSFUL_RETURN)
+          {
+               printf("[QPOASES] not successfully solved in hotstart()");
                return false;
+          }
      }
 
      solver_.getPrimalSolution(result);

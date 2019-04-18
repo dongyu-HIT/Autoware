@@ -22,7 +22,7 @@
 #include <cmath>
 #include "mpc_follower/qp_solver/qp_solver_interface.h"
 
-class QPSolverEigenLeastSquare : public QPSolver
+class QPSolverEigenLeastSquare : public QPSolverInterface
 {
 public:
   QPSolverEigenLeastSquare();

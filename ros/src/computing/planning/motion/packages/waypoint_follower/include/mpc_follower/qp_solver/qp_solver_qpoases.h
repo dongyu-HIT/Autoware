@@ -24,7 +24,7 @@
 
 #include "mpc_follower/qp_solver/qp_solver_interface.h"
 
-class QPSolverQpoasesHotstart : public QPSolver
+class QPSolverQpoasesHotstart : public QPSolverInterface
 {
 private:
   bool is_init_;

@@ -101,7 +101,7 @@ set(MPC_FOLLOWER_SRC
         nodes/mpc_follower/lowpass_filter.cpp
         nodes/mpc_follower/vehicle_model/vehicle_model_interface.cpp
         nodes/mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics.cpp
-        nodes/mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_steer.cpp
+        nodes/mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_delay.cpp
         nodes/mpc_follower/qp_solver/qp_solver_unconstr.cpp
         nodes/mpc_follower/qp_solver/qp_solver_unconstr_fast.cpp
         nodes/mpc_follower/qp_solver/qp_solver_qpoases.cpp
@@ -115,10 +115,6 @@ target_link_libraries(mpc_follower ${catkin_LIBRARIES} /usr/local/lib/libqpOASES
 add_executable(mpc_waypoints_converter nodes/mpc_follower/mpc_waypoints_converter.cpp)
 add_dependencies(mpc_waypoints_converter ${catkin_EXPORTED_TARGETS})
 target_link_libraries(mpc_waypoints_converter ${catkin_LIBRARIES})
-
-add_executable(twist_pub nodes/mpc_follower/twist_pub.cpp)
-add_dependencies(twist_pub ${catkin_EXPORTED_TARGETS})
-target_link_libraries(twist_pub ${catkin_LIBRARIES})
 
 ## Install executables and/or libraries
 install(TARGETS libwaypoint_follower pure_pursuit wf_simulator twist_filter twist_gate mpc_follower mpc_waypoints_converter
@@ -137,15 +133,6 @@ install(DIRECTORY launch/
 install(DIRECTORY config/
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config
         PATTERN ".svn" EXCLUDE)
-
-
-## TESTS
-# if(CATKIN_ENABLE_TESTING)
-#   find_package(rostest REQUIRED)
-#   add_rostest_gtest(test-mpc nodes/mpc_follower/test/test_mpc.test nodes/mpc_follower/test/src/test_mpc.cpp ${MPC_FOLLOWER_SRC})
-# #   target_link_libraries(test-mpc ${catkin_LIBRARIES})
-#   target_link_libraries(test-mpc ${catkin_LIBRARIES} /usr/local/lib/libqpOASES.a)
-# endif()
 
 if (CATKIN_ENABLE_TESTING)
     find_package(rostest REQUIRED)

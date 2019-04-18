@@ -1,3 +1,4 @@
+
 /*
  * Copyright 2018-2019 Autoware Foundation. All rights reserved.
  *
@@ -14,16 +15,16 @@
  * limitations under the License.
  */
 
-#include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_steer.h"
+#include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_delay.h"
 
-KinematicsBicycleModelNoSteer::KinematicsBicycleModelNoSteer(const double &wheelbase, const double &steer_lim_deg)
+KinematicsBicycleModelNoDelay::KinematicsBicycleModelNoDelay(const double &wheelbase, const double &steer_lim_deg)
     : VehicleModelInterface(/* dim_x */ 2, /* dim_u */ 1, /* dim_y */ 2)
 {
     wheelbase_ = wheelbase;
     steer_lim_deg_ = steer_lim_deg;
 };
-KinematicsBicycleModelNoSteer::~KinematicsBicycleModelNoSteer(){};
-void KinematicsBicycleModelNoSteer::calculateDiscreteMatrix(Eigen::MatrixXd &Ad, Eigen::MatrixXd &Bd,
+KinematicsBicycleModelNoDelay::~KinematicsBicycleModelNoDelay(){};
+void KinematicsBicycleModelNoDelay::calculateDiscreteMatrix(Eigen::MatrixXd &Ad, Eigen::MatrixXd &Bd,
                                                      Eigen::MatrixXd &Cd, Eigen::MatrixXd &Wd, double &dt)
 {
     auto sign = [](double x) { return (x > 0.0) - (x < 0.0); };
@@ -51,7 +52,7 @@ void KinematicsBicycleModelNoSteer::calculateDiscreteMatrix(Eigen::MatrixXd &Ad,
     Wd *= dt;
 }
 
-void KinematicsBicycleModelNoSteer::calculateReferenceInput(Eigen::MatrixXd &Uref)
+void KinematicsBicycleModelNoDelay::calculateReferenceInput(Eigen::MatrixXd &Uref)
 {
     Uref(0, 0) = std::atan(wheelbase_ * curvature_);
 }

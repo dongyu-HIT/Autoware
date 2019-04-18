@@ -20,7 +20,7 @@
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/LU>
 
-class QPSolver
+class QPSolverInterface
 {
 public:
   virtual bool solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const Eigen::MatrixXd &A,

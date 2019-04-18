@@ -43,7 +43,7 @@
 #include "mpc_follower/mpc_trajectory.h"
 #include "mpc_follower/lowpass_filter.h"
 #include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics.h"
-#include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_steer.h"
+#include "mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics_no_delay.h"
 #include "mpc_follower/qp_solver/qp_solver_unconstr.h"
 #include "mpc_follower/qp_solver/qp_solver_unconstr_fast.h"
 #include "mpc_follower/qp_solver/qp_solver_qpoases.h"
@@ -64,16 +64,9 @@ private:
   Butterworth2dFilter lpf_steering_cmd_;                     // steering command lowpass filter
   autoware_msgs::Lane current_waypoints_;                    // current received waypoints
   std::shared_ptr<VehicleModelInterface> vehicle_model_ptr_; // vehicle model for mpc
-  std::shared_ptr<QPSolver> qpsolver_ptr_;                   // qp solver for mpc
-
-  /* set vehicle control command interface */
-  enum CtrlCmdInterface
-  {
-    TWIST = 0,
-    CTRL_CMD = 1,
-    ALL = 2,
-  };
-  CtrlCmdInterface output_interface_; 
+  std::string vehicle_model_type_;                           // vehicle model type
+  std::shared_ptr<QPSolverInterface> qpsolver_ptr_;          // qp solver for mpc
+  std::string output_interface_;                             // output command type
 
   /* parameters for control*/
   double ctrl_period_;              // deside control frequency
@@ -101,8 +94,8 @@ private:
     double weight_steering_input;                   // for weight matrix R
     double weight_steering_input_squared_vel_coeff; //
     double weight_lat_jerk;                         //
-    double delay_compensation_time;                 // use interpolation for time delay compensation
-    double zero_curvature_range;                    // set reference curvature to zero when the value is smaller than this.
+    double weight_endpoint_Q_scale;
+    double zero_ff_steer_deg;                    // set reference curvature to zero when the value is smaller than this.
   };
   MPCParam mpc_param_; // for mpc design
 
@@ -127,11 +120,11 @@ private:
   void callbackPose(const geometry_msgs::PoseStamped::ConstPtr &);
   void callbackVehicleStatus(const autoware_msgs::VehicleStatus &msg);
 
-  void publishControlCommands(const double &vel_cmd, const double &steer_cmd);
-  void publishAsTwist(const double &vel_cmd, const double &omega_cmd);
-  void publishSteerAndVel(const double &vel_cmd, const double &steer_cmd);
+  void publishControlCommands(const double &vel_cmd, const double &acc_cmd, const double &steer_cmd, const double &steer_vel_cmd);
+  void publishTwist(const double &vel_cmd, const double &omega_cmd);
+  void publishCtrlCmd(const double &vel_cmd, const double &acc_cmd, const double &steer_cmd);
 
-  bool calculateMPC(double &vel_cmd, double &steer_cmd);
+  bool calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_cmd, double &steer_vel_cmd);
 
   /* debug */
   bool show_debug_info_;
@@ -140,7 +133,7 @@ private:
   ros::Publisher pub_steer_cmd_, pub_steer_cmd_raw_, pub_steer_cmd_ff_, pub_steer_, pub_current_vel_, pub_vel_cmd_, pub_laterr_, pub_yawerr_,
       pub_angvel_cmd_, pub_angvel_steer_, pub_angvel_cmd_ff_, pub_angvel_estimatetwist_;
   ros::Subscriber sub_ndt_twist_;
-  void convertTrajToMarker(const MPCTrajectory &traj, visualization_msgs::Marker &markers, std::string ns, double r, double g, double b);
+  void convertTrajToMarker(const MPCTrajectory &traj, visualization_msgs::Marker &markers, std::string ns, double r, double g, double b, double z);
 
   geometry_msgs::TwistStamped estimate_twist_;
   ros::Subscriber sub_estimate_twist_;

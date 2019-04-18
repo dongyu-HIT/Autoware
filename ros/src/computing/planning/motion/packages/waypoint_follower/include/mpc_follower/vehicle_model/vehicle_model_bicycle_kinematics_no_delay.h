@@ -24,11 +24,11 @@
    This is valid in the vicinity of the target trajectory.
 */
 
-class KinematicsBicycleModelNoSteer : public VehicleModelInterface
+class KinematicsBicycleModelNoDelay : public VehicleModelInterface
 {
 public:
-  KinematicsBicycleModelNoSteer(const double &wheelbase, const double &steer_lim_deg);
-  ~KinematicsBicycleModelNoSteer();
+  KinematicsBicycleModelNoDelay(const double &wheelbase, const double &steer_lim_deg);
+  ~KinematicsBicycleModelNoDelay();
   
   void calculateDiscreteMatrix(Eigen::MatrixXd &Ad, Eigen::MatrixXd &Bd, Eigen::MatrixXd &Cd, Eigen::MatrixXd &Wd, double &dt) override;
   void calculateReferenceInput(Eigen::MatrixXd &Uref) override;

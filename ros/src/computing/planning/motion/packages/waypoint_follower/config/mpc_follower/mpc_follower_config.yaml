@@ -2,7 +2,7 @@
 # debug option
 #---------------------------------------------------------------------
 
-show_debug_info: false
+show_debug_info: true
 
 
 #---------------------------------------------------------------------
@@ -41,19 +41,17 @@ steering_lpf_cutoff_hz: 2.0
 admisible_position_error: 5.0 #[m]
 admisible_yaw_error_deg: 45.0 #[deg]
 
-# steering angle limit [deg]
-steer_lim_deg: 40.0
+
 
 #---------------------------------------------------------------------
 # MPC algorithm parameters
 #---------------------------------------------------------------------
 
-# qp_solver_type: "unconstraint"
+# optimization solver type. option is "unconstraint_fast", "unconstraint", and "qpoases_hotstart"
 qp_solver_type: "unconstraint_fast"
-# qp_solver_type: "qpoases_hotstart"
 
+# vehicle model type for mpc prediction. option is "kinematics", "kinematics_no_delay"
 vehicle_model_type: "kinematics"
-# vehicle_model_type: "kinematics_no_steer"
 
 # total prediction step
 mpc_n: 70
@@ -71,18 +69,16 @@ mpc_dt: 0.1
 # mpc_weight_lat_jerk: 0.
 
 # weight parameters
-mpc_weight_lat_error: 0.1      # for Q[0,0]
-mpc_weight_heading_error: 0.  # for Q[1,1]
-mpc_weight_heading_error_squared_vel_coeff: 0.3
-mpc_weight_steering_input: 1.0 # for R[0,0]
-mpc_weight_steering_input_squared_vel_coeff: 0.25
-mpc_weight_lat_jerk: 0.0
+mpc_weight_lat_error: 0.1                         # for Q lateral error
+mpc_weight_heading_error: 0.                      # for Q heading error
+mpc_weight_heading_error_squared_vel_coeff: 0.3   # for Q heading error * vel
+mpc_weight_steering_input: 1.0                    # for R referencve input error
+mpc_weight_steering_input_squared_vel_coeff: 0.25 # for R referencve input error * vel
+mpc_weight_lat_jerk: 0.0                          # to reduce lateral jerk
+mpc_weight_endpoint_Q_scale: 5.0                  # endpoint error weight to improve mpc stability
 
-# time delay compensation
-mpc_delay_compensation_time: 0.0 #[s]
-
-# To reduce path noise effect, reference curvature is set to zeto when it is smaller than this valuse
-mpc_zero_curvature_range: 0.01
+# To reduce path noise, feedforward angle is set to zero when it is smaller than this value.
+mpc_zero_ff_steer_deg: 2.0
 
 #---------------------------------------------------------------------
 # vehicle model parameters
@@ -93,4 +89,6 @@ vehicle_model_steer_tau: 0.40 # lexus: 0.2 + LPF delay
 
 # wheel base length [m]
 vehicle_model_wheelbase: 2.79 # lexus: 2.79
-# 
+
+# steering angle limit [deg]
+steer_lim_deg: 40.0
