@@ -57,6 +57,8 @@ void calcTrajectoryYawFromXY(MPCTrajectory &traj);
 /* Calculate path curvature by 3-points circle fitting with smoothing num (use nearest 3 points when "num = 1") */
 void calcTrajectoryCurvature(MPCTrajectory &traj, int curvature_smoothing_num);
 
+void convertWaypointsToMPCTraj(const autoware_msgs::Lane &lane, MPCTrajectory &mpc_traj);
+
 /* convert path with resampling */
 void convertWaypointsToMPCTrajWithResample(const autoware_msgs::Lane &path, const std::vector<double> &time,
                                            const std::vector<double> &ref_index, const double &d_index, MPCTrajectory &ref_traj);
@@ -74,4 +76,22 @@ bool calcNearestPose(const MPCTrajectory &traj, const geometry_msgs::Pose &self_
 /* Calculate neareset pose on path with interpolation */
 bool calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_msgs::Pose &self_pose, geometry_msgs::Pose &nearest_pose,
                            unsigned int &nearest_index, double &min_dist_error, double &nearest_yaw_error, double &nearest_time);
+
+class SplineInterpolateXY
+{
+  bool initialized_;
+  std::vector<double> a_;
+  std::vector<double> b_;
+  std::vector<double> c_;
+  std::vector<double> d_;
+
+public:
+  SplineInterpolateXY();
+  SplineInterpolateXY(const std::vector<double> &x);
+  ~SplineInterpolateXY();
+  void generateSpline(const std::vector<double> &x);
+  double getValue(const double &s);
+  void getValueVector(const std::vector<double> &s_v, std::vector<double> &value_v);
+};
+
 }; // namespace MPCUtils

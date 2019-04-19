@@ -223,6 +223,22 @@ void MPCUtils::calcTrajectoryCurvature(MPCTrajectory &traj, int curvature_smooth
   }
 }
 
+void MPCUtils::convertWaypointsToMPCTraj(const autoware_msgs::Lane &lane, MPCTrajectory &mpc_traj)
+{
+  mpc_traj.clear();
+  const double k_tmp = 0.0;
+  const double t_tmp = 0.0;
+  for (const auto &wp : lane.waypoints)
+  {
+    const double x = wp.pose.pose.position.x;
+    const double y = wp.pose.pose.position.y;
+    const double z = wp.pose.pose.position.z;
+    const double yaw = tf2::getYaw(wp.pose.pose.orientation);
+    const double vx = wp.twist.twist.linear.x;
+    mpc_traj.push_back(x, y, z, yaw, vx, k_tmp, t_tmp);
+  }
+}
+
 void MPCUtils::convertWaypointsToMPCTrajWithDistanceResample(const autoware_msgs::Lane &path, const std::vector<double> &time,
                                                              const double &dl, MPCTrajectory &ref_traj)
 {
@@ -468,7 +484,6 @@ bool MPCUtils::calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_m
   const double alpha = 0.5 * (c_sq - a_sq + b_sq) / c_sq;
   nearest_pose.position.x = alpha * traj.x[nearest_index] + (1 - alpha) * traj.x[second_nearest_index];
   nearest_pose.position.y = alpha * traj.y[nearest_index] + (1 - alpha) * traj.y[second_nearest_index];
-  const double nearest_yaw_old = alpha * traj.yaw[nearest_index] + (1 - alpha) * traj.yaw[second_nearest_index];
   double tmp_yaw_err = traj.yaw[nearest_index] - traj.yaw[second_nearest_index];
   if (tmp_yaw_err > M_PI)
   {
@@ -486,4 +501,72 @@ bool MPCUtils::calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_m
   min_dist_error = std::sqrt(b_sq - c_sq * alpha * alpha);
   nearest_yaw_error = normalizeAngle(my_yaw - nearest_yaw);
   return true;
+}
+
+MPCUtils::SplineInterpolateXY::SplineInterpolateXY(){};
+MPCUtils::SplineInterpolateXY::SplineInterpolateXY(const std::vector<double> &x)
+{
+  generateSpline(x);
+};
+MPCUtils::SplineInterpolateXY::~SplineInterpolateXY(){};
+void MPCUtils::SplineInterpolateXY::generateSpline(const std::vector<double> &x)
+{
+  int N = x.size();
+
+  a_.clear();
+  b_.clear();
+  c_.clear();
+  d_.clear();
+
+  a_ = x;
+
+  c_.push_back(0.0);
+  for (int i = 1; i < N - 1; i++)
+    c_.push_back(3.0 * (a_[i - 1] - 2.0 * a_[i] + a_[i + 1]));
+  c_.push_back(0.0);
+
+  std::vector<double> w_;
+  w_.push_back(0.0);
+
+  double tmp;
+  for (int i = 1; i < N - 1; i++)
+  {
+    tmp = 1.0 / (4.0 - w_[i - 1]);
+    c_[i] = (c_[i] - c_[i - 1]) * tmp;
+    w_.push_back(tmp);
+  }
+
+  for (int i = N - 2; i > 0; i--)
+    c_[i] = c_[i] - c_[i + 1] * w_[i];
+
+  for (int i = 0; i < N - 1; i++)
+  {
+    d_.push_back((c_[i + 1] - c_[i]) / 3.0);
+    b_.push_back(a_[i + 1] - a_[i] - c_[i] - d_[i]);
+  }
+  d_.push_back(0.0);
+  b_.push_back(0.0);
+
+  initialized_ = true;
+};
+
+double MPCUtils::SplineInterpolateXY::getValue(const double &s)
+{
+  if (!initialized_)
+    return 0.0;
+
+  int j = std::max(std::min(int(std::floor(s)), (int)a_.size() - 1), 0);
+  const double ds = s - j;
+  return a_[j] + (b_[j] + (c_[j] + d_[j] * ds) * ds) * ds;
+}
+
+void MPCUtils::SplineInterpolateXY::getValueVector(const std::vector<double> &s_v, std::vector<double> &value_v)
+{
+  if (!initialized_)
+    return;
+  value_v.clear();
+  for (int i = 0; i < (int)s_v.size(); ++i)
+  {
+    value_v.push_back(getValue(s_v[i]));
+  }
 }
