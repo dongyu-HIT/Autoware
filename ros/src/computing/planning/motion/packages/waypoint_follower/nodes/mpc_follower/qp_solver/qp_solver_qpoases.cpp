@@ -23,12 +23,10 @@ QPSolverQpoasesHotstart::QPSolverQpoasesHotstart(const int max_iter)
 QPSolverQpoasesHotstart::~QPSolverQpoasesHotstart(){};
 
 bool QPSolverQpoasesHotstart::solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const Eigen::MatrixXd &A,
-                                    const Eigen::MatrixXd &lb, const Eigen::MatrixXd &ub, const Eigen::MatrixXd &lbA,
+                                    const Eigen::VectorXd &lb, const Eigen::VectorXd &ub, const Eigen::MatrixXd &lbA,
                                     const Eigen::MatrixXd &ubA, Eigen::VectorXd &U)
 {
      USING_NAMESPACE_QPOASES
-
-     double max_u = 35.0 * 3.1415 / 180.0;
 
      int max_iter = max_iter_;
 
@@ -62,8 +60,8 @@ bool QPSolverQpoasesHotstart::solve(const Eigen::MatrixXd &Hmat, const Eigen::Ma
 
      for (int i = 0; i < kNumOfoffsetRows; ++i)
      {
-          lower_bound[i] = -max_u;
-          upper_bound[i] = max_u;
+          lower_bound[i] = lb[i];
+          upper_bound[i] = ub[i];
      }
 
      solver_.setPrintLevel(qpOASES::PL_NONE);

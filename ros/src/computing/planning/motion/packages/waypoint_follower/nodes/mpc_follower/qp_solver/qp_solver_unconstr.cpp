@@ -19,8 +19,8 @@
 QPSolverEigenLeastSquare::QPSolverEigenLeastSquare(){};
 QPSolverEigenLeastSquare::~QPSolverEigenLeastSquare(){};
 bool QPSolverEigenLeastSquare::solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const Eigen::MatrixXd &A,
-                                        const Eigen::MatrixXd &lb, const Eigen::MatrixXd &ub, const Eigen::MatrixXd &lbA,
-                                        const Eigen::MatrixXd &ubA, Eigen::VectorXd &U)
+                                     const Eigen::VectorXd &lb, const Eigen::VectorXd &ub, const Eigen::MatrixXd &lbA,
+                                     const Eigen::MatrixXd &ubA, Eigen::VectorXd &U)
 {
      if (std::fabs(Hmat.determinant()) < 1.0E-9)
           return false;

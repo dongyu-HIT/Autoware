@@ -198,36 +198,30 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
 
   /* calculate nearest point on reference trajectory (used as initial state) */
   unsigned int nearest_index = 0;
-  double yaw_err = std::numeric_limits<double>::max();
-  double dist_err = std::numeric_limits<double>::max();
-  double nearest_traj_time = 0.0;
+  double yaw_err, dist_err, nearest_traj_time;
   geometry_msgs::Pose nearest_pose;
   if (!MPCUtils::calcNearestPoseInterp(ref_traj_, vehicle_status_.pose, nearest_pose, nearest_index, dist_err, yaw_err, nearest_traj_time))
   {
     ROS_WARN("[MPC] calculateMPC: error in calculating nearest pose. stop mpc.");
     return false;
   };
-  DEBUG_INFO("[MPC] calculateMPC: selfpose.x = %f, y = %f, yaw = %f", vehicle_status_.pose.position.x, vehicle_status_.pose.position.y, current_yaw);
-  DEBUG_INFO("[MPC] calculateMPC: nearpose.x = %f, y = %f, yaw = %f", nearest_pose.position.x, nearest_pose.position.y, tf2::getYaw(nearest_pose.orientation));
-  DEBUG_INFO("[MPC] calculateMPC: nearest_index = %d, dist_error = %f, yaw_error = %f", nearest_index, dist_err, yaw_err);
 
   /* check if lateral error is not too large */
   if (dist_err > admisible_position_error_ || std::fabs(yaw_err) > admisible_yaw_error_deg_ * DEG2RAD)
   {
-    ROS_WARN("[MPC] calculateMPC: error is over limit, stop mpc. (pos-error: %f[m], pos-limit: %f[m], yaw-error: %f[deg], yaw-limit: %f[deg])",
+    ROS_WARN("[MPC] error is over limit, stop mpc. (pos-error: %f[m], pos-limit: %f[m], yaw-error: %f[deg], yaw-limit: %f[deg])",
              dist_err, admisible_position_error_, yaw_err * RAD2DEG, admisible_yaw_error_deg_);
     return false;
   }
 
   /* set mpc initial time */
   const double mpc_start_time = nearest_traj_time;
-  DEBUG_INFO("[MPC] calculateMPC: nearest_traj_time = %f", nearest_traj_time);
 
   /* check trajectory length */
   const double mpc_end_time = mpc_start_time + (N - 1) * mpc_param_.dt;
   if (mpc_end_time > ref_traj_.relative_time.back())
   {
-    ROS_WARN("[MPC] calculateMPC: path is too short to predict dynamics. path end time: %f, mpc end time: %f", ref_traj_.relative_time.back(), mpc_end_time);
+    ROS_WARN("[MPC] path is too short to predict dynamics. path end time: %f, mpc end time: %f", ref_traj_.relative_time.back(), mpc_end_time);
     return false;
   }
 
@@ -236,9 +230,6 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
   const double err_y = vehicle_status_.pose.position.y - nearest_pose.position.y;
   const double sp_yaw = tf2::getYaw(nearest_pose.orientation);
   const double err_lat = -sin(sp_yaw) * err_x + cos(sp_yaw) * err_y;
-
-  /* calculate yaw error, convert into range [-pi to pi] */
-  yaw_err = MPCUtils::normalizeAngle(yaw_err);
 
   /* get steering angle */
   const double steer = vehicle_status_.tire_angle_rad;
@@ -261,12 +252,14 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
   {
     ROS_ERROR("vehicle_model_type is undefined");
     return false;
-  }
-  DEBUG_INFO("[MPC] calculateMPC: lat error = %f, yaw error = %f, steer = %f, sp_yaw = %f, my_yaw = %f", err_lat, yaw_err, steer, sp_yaw, current_yaw);
+}
+  DEBUG_INFO("[MPC] selfpose.x = %f, y = %f, yaw = %f", vehicle_status_.pose.position.x, vehicle_status_.pose.position.y, current_yaw);
+  DEBUG_INFO("[MPC] nearpose.x = %f, y = %f, yaw = %f", nearest_pose.position.x, nearest_pose.position.y, tf2::getYaw(nearest_pose.orientation));
+  DEBUG_INFO("[MPC] nearest_index = %d, nearest_traj_time = %f", nearest_index,  nearest_traj_time);
+  DEBUG_INFO("[MPC] lat error = %f, yaw error = %f, steer = %f, sp_yaw = %f, my_yaw = %f", err_lat, yaw_err, steer, sp_yaw, current_yaw);
 
-  ////////////////////////////////////////////////////
+
   /////////////// generate mpc matrix  ///////////////
-  ////////////////////////////////////////////////////
   /*
    * predict equation: Xec = Aex * x0 + Bex * Uex + Wex
    * cost function: J = Xex' * Qex * Xex + (Uex - Uref)' * Rex * (Uex - Urefex)
@@ -377,12 +370,10 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
     Rex(i + 1, i + 1) += lateral_jerk_weight;
   }
 
-  ////////////////////////////////////////////
   /////////////// optimization ///////////////
-  ////////////////////////////////////////////
   /*
    * solve quadratic optimization.
-   * cost function: Uex' * H * Uex + f' * Uex
+   * cost function: 1/2 * Uex' * H * Uex + f' * Uex
    */
   const Eigen::MatrixXd CB = Cex * Bex;
   const Eigen::MatrixXd QCB = Qex * CB;
@@ -394,18 +385,19 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
   Eigen::VectorXd Uex;
 
   /* add lateral jerk : weight for (v0 * {u(0) - u_prev} )^2 */
-  H(0, 0) += mpc_resampled_ref_traj.vx[0] * mpc_resampled_ref_traj.vx[0] * mpc_param_.weight_lat_jerk;
-  f(0, 0) -= 2.0 * mpc_resampled_ref_traj.vx[0] * mpc_param_.weight_lat_jerk * steer_cmd_prev_;
+  const double lateral_jerk_weitht_0 = mpc_resampled_ref_traj.vx[0] * mpc_resampled_ref_traj.vx[0] * mpc_param_.weight_lat_jerk;
+  H(0, 0) += lateral_jerk_weitht_0;
+  f(0, 0) -= lateral_jerk_weitht_0 * steer_cmd_prev_;
 
   /* constraint matrix : lb < U < ub, lbA < A*U < ubA */
+  const double u_lim = steer_lim_deg_ * DEG2RAD;
   Eigen::MatrixXd A = Eigen::MatrixXd::Zero(DIM_U * N, DIM_U * N);
-  Eigen::MatrixXd lb = Eigen::MatrixXd::Zero(DIM_U * N, 1);
-  Eigen::MatrixXd ub = Eigen::MatrixXd::Zero(DIM_U * N, 1);
   Eigen::MatrixXd lbA = Eigen::MatrixXd::Zero(DIM_U * N, 1);
   Eigen::MatrixXd ubA = Eigen::MatrixXd::Zero(DIM_U * N, 1);
+  Eigen::VectorXd lb = Eigen::VectorXd::Constant(DIM_U * N, -u_lim);
+  Eigen::VectorXd ub = Eigen::VectorXd::Constant(DIM_U * N, u_lim);
 
   auto start = std::chrono::system_clock::now();
-  const double u_lim = steer_lim_deg_ * DEG2RAD;
   if (!qpsolver_ptr_->solve(H, f.transpose(), A, lb, ub, lbA, ubA, Uex))
   {
     ROS_WARN("[MPC] qp solver error");
@@ -424,18 +416,14 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
   steer_cmd = u_filtered;
   steer_vel_cmd = (Uex(1) - Uex(0)) / mpc_param_.dt;
 
-  /////////////////////////////////////////////////
-  /////////////// velocity control ////////////////
-  /////////////////////////////////////////////////
-  /* For simplicity, now we calculate steer and speed separately */
+  /* Velocity control: for simplicity, now we calculate steer and speed separately */
   vel_cmd = ref_traj_.vx[0];
   acc_cmd = (ref_traj_.vx[1] - ref_traj_.vx[0]) / mpc_param_.dt;
 
   steer_cmd_prev_ = steer_cmd;
 
-  ////////////////////////////////////////////
+
   ////////////////// DEBUG ///////////////////
-  ////////////////////////////////////////////
 
   /* calculate predicted trajectory */
   Eigen::VectorXd Xex = Aex * x0 + Bex * Uex + Wex;

@@ -28,6 +28,6 @@ public:
   QPSolverEigenLeastSquare();
   ~QPSolverEigenLeastSquare();
   bool solve(const Eigen::MatrixXd &Hmat, const Eigen::MatrixXd &fvec, const Eigen::MatrixXd &A,
-             const Eigen::MatrixXd &lb, const Eigen::MatrixXd &ub, const Eigen::MatrixXd &lbA,
+             const Eigen::VectorXd &lb, const Eigen::VectorXd &ub, const Eigen::MatrixXd &lbA,
              const Eigen::MatrixXd &ubA, Eigen::VectorXd &U) override;
 };
