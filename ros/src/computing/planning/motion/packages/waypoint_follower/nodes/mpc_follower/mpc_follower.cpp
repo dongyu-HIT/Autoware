@@ -66,6 +66,21 @@ MPCFollower::MPCFollower()
   else if (vehicle_model_type_ == "dynamics")
   {
     // write me
+    double mass_fl;
+    double mass_fr;
+    double mass_rl;
+    double mass_rr;
+    double cf;
+    double cr;
+
+    pnh_.param("mass_fl", mass_fl, double(600));
+    pnh_.param("mass_fr", mass_fr, double(600));
+    pnh_.param("mass_rl", mass_rl, double(600));
+    pnh_.param("mass_rr", mass_rr, double(600));
+    pnh_.param("cf", cf, double(155494.663));
+    pnh_.param("cr", cr, double(155494.663));
+
+    vehicle_model_ptr_ = std::make_shared<DynamicsBicycleModel>(wheelbase_, steer_lim_deg_, mass_fl, mass_fr, mass_rl, mass_rr, cf, cr);
     ROS_INFO("[MPC] set vehicle_model = dynamics");
   }
   else
