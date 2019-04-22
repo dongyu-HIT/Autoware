@@ -92,3 +92,10 @@ vehicle_model_wheelbase: 2.79 # lexus: 2.79
 
 # steering angle limit [deg]
 steer_lim_deg: 40.0
+
+mass_fl: 600
+mass_fr: 600
+mass_rl: 600
+mass_rr: 600
+cf: 155494.663
+cr: 155494.663
