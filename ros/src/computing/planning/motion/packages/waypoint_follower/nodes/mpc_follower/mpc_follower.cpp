@@ -65,7 +65,6 @@ MPCFollower::MPCFollower()
   }
   else if (vehicle_model_type_ == "dynamics")
   {
-    // write me
     double mass_fl;
     double mass_fr;
     double mass_rl;
