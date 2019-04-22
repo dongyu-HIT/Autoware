@@ -66,14 +66,24 @@ void DynamicsBicycleModel::calculateDiscreteMatrix(Eigen::MatrixXd &Ad,
 
     Ad = Ad_inverse * (I + dt * 0.5 * Ad); // bilinear discretization
 
-    B1d << 0.0, cf_ / mass_, 0.0, lf_ * cf_ / iz_;
-    B2d << 0.0, (lr_ * cr_ - lf_ * cf_) / (mass_ * vel) - vel, 0.0, -(lf_ * lf_ * cf_ + lr_ * lr_ * cr_) / (iz_ * vel);
+    B1d = Eigen::MatrixXd::Zero(dim_x_, dim_u_);
+    B1d(0, 0) = 0.0;
+    B1d(1, 0) = cf_ / mass_;
+    B1d(2, 0) = 0.0;
+    B1d(3, 0) = lf_ * cf_ / iz_;
+
+    B2d = Eigen::MatrixXd::Zero(dim_x_, 1);
+    B2d(0, 0) = 0.0;
+    B2d(1, 0) = (lr_ * cr_ - lf_ * cf_)/(mass_ * vel) - vel;
+    B2d(2, 0) = 0.0;
+    B2d(3, 0) = -(lf_ * lf_ * cf_ + lr_ * lr_ * cr_) / (iz_ * vel);
+
     B1d = (Ad_inverse * dt) * B1d;
     B2d = (Ad_inverse * dt * curvature_ * vel) * B2d;
 
     Cd = Eigen::MatrixXd::Zero(dim_y_, dim_x_);
-    Cd(0,0) = 1.0;
-    Cd(1,2) = 1.0;
+    Cd(0, 0) = 1.0;
+    Cd(1, 2) = 1.0;
 
 }
 
