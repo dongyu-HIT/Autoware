@@ -2174,6 +2174,14 @@ params :
       cmd_param :
         dash        : ''
         delim       : ':='
+    - name      : use_ctrl_cmd
+      desc      :
+      label   : 'use_ctrl_cmd :'
+      kind    : checkbox
+      v       : False
+      cmd_param :
+        dash        : ''
+        delim       : ':='
 
   - name  : decision_maker
     topic : /config/decision_maker

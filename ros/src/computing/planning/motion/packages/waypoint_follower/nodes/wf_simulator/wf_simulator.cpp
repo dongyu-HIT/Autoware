@@ -44,6 +44,7 @@ bool is_closest_waypoint_subscribed_ = false;
 geometry_msgs::Pose initial_pose_;
 WayPoints current_waypoints_;
 geometry_msgs::Twist current_velocity_;
+autoware_msgs::VehicleCmd vehicle_cmd_;
 
 ros::Publisher odometry_publisher_;
 ros::Publisher velocity_publisher_;
@@ -59,41 +60,36 @@ double wheel_base_ = 2.7;
 
 constexpr int LOOP_RATE = 50;  // 50Hz
 
-void CmdCallBack(const autoware_msgs::VehicleCmdConstPtr& msg, double accel_rate)
+void velocityUpdate(const double &vel_cmd, const double &acc_cmd, double &vel)
+{
+  if (vel < vel_cmd)
+  {
+    // acceleration
+    vel += acc_cmd / (double)LOOP_RATE;
+    vel = std::min(current_velocity_.linear.x, vel_cmd);
+  }
+  else
+  {
+    // deceleration
+    vel -= acc_cmd / (double)LOOP_RATE;
+    vel = std::max(vel, vel_cmd);
+  }
+}
+
+void CmdCallBack(const autoware_msgs::VehicleCmdConstPtr &msg, double accel_rate)
+
 {
   if (use_ctrl_cmd == true)
   {
     linear_acceleration_ = msg->ctrl_cmd.linear_acceleration;
+    velocityUpdate(msg->ctrl_cmd.linear_velocity, accel_rate, current_velocity_.linear.x);
     steering_angle_ = msg->ctrl_cmd.steering_angle;
+    current_velocity_.angular.z = current_velocity_.linear.x * std::tan(steering_angle_) / wheel_base_;
   }
   else
   {
-    static double previous_linear_velocity = 0;
-
-    if (current_velocity_.linear.x < msg->twist_cmd.twist.linear.x)
-    {
-      current_velocity_.linear.x = previous_linear_velocity + accel_rate / (double)LOOP_RATE;
-
-      if (current_velocity_.linear.x > msg->twist_cmd.twist.linear.x)
-      {
-        current_velocity_.linear.x = msg->twist_cmd.twist.linear.x;
-      }
-    }
-    else
-    {
-      current_velocity_.linear.x = previous_linear_velocity - accel_rate / (double)LOOP_RATE;
-
-      if (current_velocity_.linear.x < msg->twist_cmd.twist.linear.x)
-      {
-        current_velocity_.linear.x = msg->twist_cmd.twist.linear.x;
-      }
-    }
-
-    previous_linear_velocity = current_velocity_.linear.x;
-
+    velocityUpdate(msg->twist_cmd.twist.linear.x, accel_rate, current_velocity_.linear.x);
     current_velocity_.angular.z = msg->twist_cmd.twist.angular.z;
-
-    //current_velocity_ = msg->twist;
   }
 }
 
@@ -148,15 +144,6 @@ void callbackFromClosestWaypoint(const std_msgs::Int32ConstPtr& msg)
   is_closest_waypoint_subscribed_ = true;
 }
 
-void updateVelocity()
-{
-  if (use_ctrl_cmd == false)
-    return;
-
-  current_velocity_.linear.x += linear_acceleration_ / (double)LOOP_RATE;
-  current_velocity_.angular.z = current_velocity_.linear.x * std::sin(steering_angle_) / wheel_base_;
-}
-
 void publishOdometry()
 {
   static ros::Time current_time = ros::Time::now();
@@ -179,7 +166,7 @@ void publishOdometry()
     pose.position.z = current_waypoints_.getWaypointPosition(closest_waypoint_).z;
   double vx = current_velocity_.linear.x;
   double vth = current_velocity_.angular.z;
-  current_time = ros::Time::now();
+  
 
   // compute odometry in a typical way given the velocities of the robot
   std::random_device rnd;
@@ -189,7 +176,9 @@ void publishOdometry()
   double rnd_value_y = rnd_dist(mt) - 1.0;
   double rnd_value_th = rnd_dist(mt) - 1.0;
 
+  current_time = ros::Time::now();
   double dt = (current_time - last_time).toSec();
+  last_time = current_time;
   double delta_x = (vx * cos(th)) * dt + rnd_value_x * position_error_;
   double delta_y = (vx * sin(th)) * dt + rnd_value_y * position_error_;
   double delta_th = vth * dt + rnd_value_th * angle_error_ * M_PI / 180;
@@ -246,10 +235,9 @@ void publishOdometry()
   odometry_publisher_.publish(ps);
   velocity_publisher_.publish(ts);
   vehicle_status_publisher_.publish(vs);
+}
+}
 
-  last_time = current_time;
-}
-}
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "wf_simulator");
@@ -278,8 +266,7 @@ int main(int argc, char** argv)
   vehicle_status_publisher_ = nh.advertise<autoware_msgs::VehicleStatus>("sim_vehicle_status", 10);
 
   // subscribe topic
-  ros::Subscriber cmd_subscriber =
-      nh.subscribe<autoware_msgs::VehicleCmd>("vehicle_cmd", 10, boost::bind(CmdCallBack, _1, accel_rate));
+  ros::Subscriber cmd_subscriber = nh.subscribe<autoware_msgs::VehicleCmd>("vehicle_cmd", 10, CmdCallBack));
   ros::Subscriber waypoint_subcscriber = nh.subscribe("base_waypoints", 10, waypointCallback);
   ros::Subscriber closest_sub = nh.subscribe("closest_waypoint", 10, callbackFromClosestWaypoint);
   ros::Subscriber initialpose_subscriber;
@@ -301,6 +288,9 @@ int main(int argc, char** argv)
     ROS_INFO("Set pose initializer!!");
   }
 
+  current_velocity_.linear.x = 0.0;
+  current_velocity_.angular.z = 0.0;
+
   ros::Rate loop_rate(LOOP_RATE);
   while (ros::ok())
   {
@@ -312,7 +302,6 @@ int main(int argc, char** argv)
       continue;
     }
 
-    updateVelocity();
     publishOdometry();
 
     loop_rate.sleep();
