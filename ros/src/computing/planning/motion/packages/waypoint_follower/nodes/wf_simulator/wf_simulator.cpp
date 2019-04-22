@@ -40,6 +40,7 @@ bool pose_set_ = false;
 bool waypoint_set_ = false;
 bool use_ctrl_cmd = false;
 bool is_closest_waypoint_subscribed_ = false;
+bool vehicle_cmd_set_ = false;
 
 geometry_msgs::Pose initial_pose_;
 WayPoints current_waypoints_;
@@ -60,7 +61,7 @@ double wheel_base_ = 2.7;
 
 constexpr int LOOP_RATE = 50;  // 50Hz
 
-void velocityUpdate(const double &vel_cmd, const double &acc_cmd, double &vel)
+void controlVelocity(const double &vel_cmd, const double &acc_cmd, double &vel)
 {
   if (vel < vel_cmd)
   {
@@ -76,21 +77,29 @@ void velocityUpdate(const double &vel_cmd, const double &acc_cmd, double &vel)
   }
 }
 
-void CmdCallBack(const autoware_msgs::VehicleCmdConstPtr &msg, double accel_rate)
+void updateVelocity(const autoware_msgs::VehicleCmd &vehicle_cmd, const double &accel_rate) {
 
-{
+  if (!vehicle_cmd_set_)
+    return;
+
   if (use_ctrl_cmd == true)
   {
-    linear_acceleration_ = msg->ctrl_cmd.linear_acceleration;
-    velocityUpdate(msg->ctrl_cmd.linear_velocity, accel_rate, current_velocity_.linear.x);
-    steering_angle_ = msg->ctrl_cmd.steering_angle;
+    linear_acceleration_ = vehicle_cmd.ctrl_cmd.linear_acceleration;
+    controlVelocity(vehicle_cmd.ctrl_cmd.linear_velocity, accel_rate, current_velocity_.linear.x);
+    steering_angle_ = vehicle_cmd.ctrl_cmd.steering_angle;
     current_velocity_.angular.z = current_velocity_.linear.x * std::tan(steering_angle_) / wheel_base_;
   }
   else
   {
-    velocityUpdate(msg->twist_cmd.twist.linear.x, accel_rate, current_velocity_.linear.x);
-    current_velocity_.angular.z = msg->twist_cmd.twist.angular.z;
+    controlVelocity(vehicle_cmd.twist_cmd.twist.linear.x, accel_rate, current_velocity_.linear.x);
+    current_velocity_.angular.z = vehicle_cmd.twist_cmd.twist.angular.z;
   }
+}
+
+void CmdCallBack(const autoware_msgs::VehicleCmdConstPtr &msg)
+{
+  vehicle_cmd_ = *msg;
+  vehicle_cmd_set_ = true;
 }
 
 void getTransformFromTF(const std::string parent_frame, const std::string child_frame, tf::StampedTransform& transform)
@@ -266,7 +275,7 @@ int main(int argc, char** argv)
   vehicle_status_publisher_ = nh.advertise<autoware_msgs::VehicleStatus>("sim_vehicle_status", 10);
 
   // subscribe topic
-  ros::Subscriber cmd_subscriber = nh.subscribe<autoware_msgs::VehicleCmd>("vehicle_cmd", 10, CmdCallBack));
+  ros::Subscriber cmd_subscriber = nh.subscribe<autoware_msgs::VehicleCmd>("vehicle_cmd", 10, CmdCallBack);
   ros::Subscriber waypoint_subcscriber = nh.subscribe("base_waypoints", 10, waypointCallback);
   ros::Subscriber closest_sub = nh.subscribe("closest_waypoint", 10, callbackFromClosestWaypoint);
   ros::Subscriber initialpose_subscriber;
@@ -301,7 +310,7 @@ int main(int argc, char** argv)
       loop_rate.sleep();
       continue;
     }
-
+    updateVelocity(vehicle_cmd_, accel_rate);
     publishOdometry();
 
     loop_rate.sleep();
