@@ -266,7 +266,7 @@ int main(int argc, char** argv)
   vehicle_status_publisher_ = nh.advertise<autoware_msgs::VehicleStatus>("sim_vehicle_status", 10);
 
   // subscribe topic
-  ros::Subscriber cmd_subscriber = nh.subscribe<autoware_msgs::VehicleCmd>("vehicle_cmd", 10, CmdCallBack));
+  ros::Subscriber cmd_subscriber = nh.subscribe<autoware_msgs::VehicleCmd>("vehicle_cmd", 10, CmdCallBack);
   ros::Subscriber waypoint_subcscriber = nh.subscribe("base_waypoints", 10, waypointCallback);
   ros::Subscriber closest_sub = nh.subscribe("closest_waypoint", 10, callbackFromClosestWaypoint);
   ros::Subscriber initialpose_subscriber;
