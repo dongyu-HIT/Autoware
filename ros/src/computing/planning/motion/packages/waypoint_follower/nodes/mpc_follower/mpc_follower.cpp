@@ -17,6 +17,7 @@
 #include "mpc_follower/mpc_follower.h"
 
 #define DEBUG_INFO(...) { if (show_debug_info_) { ROS_INFO(__VA_ARGS__); }}
+#define PRINT_MAT(X) std::cout << #X << ":\n" << X << std::endl << std::endl
 
 MPCFollower::MPCFollower()
     : nh_(""), pnh_("~"), my_position_ok_(false), my_velocity_ok_(false), my_steering_ok_(false)
@@ -65,13 +66,7 @@ MPCFollower::MPCFollower()
   }
   else if (vehicle_model_type_ == "dynamics")
   {
-    double mass_fl;
-    double mass_fr;
-    double mass_rl;
-    double mass_rr;
-    double cf;
-    double cr;
-
+    double mass_fl, mass_fr, mass_rl, mass_rr, cf, cr;
     pnh_.param("mass_fl", mass_fl, double(600));
     pnh_.param("mass_fr", mass_fr, double(600));
     pnh_.param("mass_rl", mass_rl, double(600));
@@ -112,11 +107,16 @@ MPCFollower::MPCFollower()
   }
 
   steer_cmd_prev_ = 0.0;
+  lateral_error_prev_ = 0.0;
+  yaw_error_prev_ = 0.0;
 
   /* initialize lowpass filter */
-  double steering_lpf_cutoff_hz;
+  double steering_lpf_cutoff_hz, error_deriv_lpf_curoff_hz;
   pnh_.param("steering_lpf_cutoff_hz", steering_lpf_cutoff_hz, double(3.0));
+  pnh_.param("error_deriv_lpf_curoff_hz", error_deriv_lpf_curoff_hz, double(5.0));
   lpf_steering_cmd_.initialize(ctrl_period_, steering_lpf_cutoff_hz);
+  lpf_lateral_error_.initialize(ctrl_period_, error_deriv_lpf_curoff_hz);
+  lpf_yaw_error_.initialize(ctrl_period_, error_deriv_lpf_curoff_hz);
 
   /* set up ros system */
   timer_control_ = nh_.createTimer(ros::Duration(ctrl_period_), &MPCFollower::timerCallback, this);
@@ -260,13 +260,21 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
   }
   else if (vehicle_model_type_ == "dynamics")
   {
-    // write me
+    double dot_err_lat = (err_lat - lateral_error_prev_) / ctrl_period_;
+    double dot_err_yaw = (yaw_err - yaw_error_prev_) / ctrl_period_;
+    DEBUG_INFO("[MPC] (before lpf) dot_err_lat = %f, dot_err_yaw = %f", dot_err_lat, dot_err_yaw);
+    lateral_error_prev_ = err_lat;
+    yaw_error_prev_ = yaw_err;
+    dot_err_lat = lpf_lateral_error_.filter(dot_err_lat);
+    dot_err_yaw = lpf_yaw_error_.filter(dot_err_yaw);
+    DEBUG_INFO("[MPC] (after lpf) dot_err_lat = %f, dot_err_yaw = %f", dot_err_lat, dot_err_yaw);
+    x0 << err_lat, dot_err_lat, yaw_err, dot_err_yaw;
   }
   else
   {
     ROS_ERROR("vehicle_model_type is undefined");
     return false;
-}
+  }
   DEBUG_INFO("[MPC] selfpose.x = %f, y = %f, yaw = %f", vehicle_status_.pose.position.x, vehicle_status_.pose.position.y, current_yaw);
   DEBUG_INFO("[MPC] nearpose.x = %f, y = %f, yaw = %f", nearest_pose.position.x, nearest_pose.position.y, tf2::getYaw(nearest_pose.orientation));
   DEBUG_INFO("[MPC] nearest_index = %d, nearest_traj_time = %f", nearest_index,  nearest_traj_time);
@@ -384,6 +392,13 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
     Rex(i + 1, i + 1) += lateral_jerk_weight;
   }
 
+  if (Aex.array().isNaN().any() || Bex.array().isNaN().any() ||
+      Cex.array().isNaN().any() || Wex.array().isNaN().any())
+  {
+    ROS_WARN("[MPC] calculateMPC: model matrix includes NaN, stop MPC.");
+    return false;
+  }
+
   /////////////// optimization ///////////////
   /*
    * solve quadratic optimization.
@@ -420,6 +435,11 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
   double elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now() - start).count() * 1.0e-6;
   DEBUG_INFO("[MPC] calculateMPC: qp solver calculation time = %f [ms]", elapsed);
 
+  if (Uex.array().isNaN().any()) {
+    ROS_WARN("[MPC] calculateMPC: model Uex includes NaN, stop MPC. ");
+    return false;
+  }
+
   /* saturation */
   const double u_sat = std::max(std::min(Uex(0), u_lim), -u_lim);
 
@@ -438,6 +458,10 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
 
 
   ////////////////// DEBUG ///////////////////
+
+  DEBUG_INFO("[MPC] calculateMPC: mpc steer command raw = %f, filtered = %f, steer_vel_cmd = %f", Uex(0, 0), u_filtered, steer_vel_cmd);
+  DEBUG_INFO("[MPC] calculateMPC: mpc vel command = %f, acc_cmd = %f", vel_cmd, acc_cmd);
+
 
   /* calculate predicted trajectory */
   Eigen::VectorXd Xex = Aex * x0 + Bex * Uex + Wex;

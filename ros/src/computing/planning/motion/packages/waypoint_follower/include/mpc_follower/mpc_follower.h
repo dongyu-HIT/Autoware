@@ -63,6 +63,8 @@ private:
 
   MPCTrajectory ref_traj_;                                   // reference trajectory for mpc
   Butterworth2dFilter lpf_steering_cmd_;                     // steering command lowpass filter
+  Butterworth2dFilter lpf_lateral_error_;                    // lateral error lowpass filter
+  Butterworth2dFilter lpf_yaw_error_;                        // yaw error lowpass filter
   autoware_msgs::Lane current_waypoints_;                    // current received waypoints
   std::shared_ptr<VehicleModelInterface> vehicle_model_ptr_; // vehicle model for mpc
   std::string vehicle_model_type_;                           // vehicle model type
@@ -110,6 +112,8 @@ private:
   VehicleStatus vehicle_status_; // updated by topic callback
 
   double steer_cmd_prev_;
+  double lateral_error_prev_;
+  double yaw_error_prev_;
 
   /* flags */
   bool my_position_ok_;
