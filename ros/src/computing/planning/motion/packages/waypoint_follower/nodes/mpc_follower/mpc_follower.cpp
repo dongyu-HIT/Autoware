@@ -17,7 +17,6 @@
 #include "mpc_follower/mpc_follower.h"
 
 #define DEBUG_INFO(...) { if (show_debug_info_) { ROS_INFO(__VA_ARGS__); }}
-#define PRINT_MAT(X) std::cout << #X << ":\n" << X << std::endl << std::endl
 
 MPCFollower::MPCFollower()
     : nh_(""), pnh_("~"), my_position_ok_(false), my_velocity_ok_(false), my_steering_ok_(false)
