@@ -100,6 +100,7 @@ add_dependencies(twist_gate
 set(MPC_FOLLOWER_SRC
         nodes/mpc_follower/mpc_utils.cpp
         nodes/mpc_follower/mpc_trajectory.cpp
+        nodes/mpc_follower/interpolate.cpp
         nodes/mpc_follower/lowpass_filter.cpp
         nodes/mpc_follower/vehicle_model/vehicle_model_interface.cpp
         nodes/mpc_follower/vehicle_model/vehicle_model_bicycle_kinematics.cpp

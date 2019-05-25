@@ -26,8 +26,10 @@
 #include <std_msgs/Float64MultiArray.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <amathutils_lib/amathutils.hpp>
 
+#include "mpc_follower/interpolate.h"
 #include "mpc_follower/mpc_trajectory.h"
 
 namespace MPCUtils
@@ -72,15 +74,16 @@ void calcTrajectoryYawFromXY(MPCTrajectory &traj);
  * @brief Calculate path curvature by 3-points circle fitting with smoothing num (use nearest 3 points when num = 1)
  * @param [inout] traj object trajectory
  * @param [in] curvature_smoothing_num index distance for 3 points for curvature calculation
+ * @return bool to check whether it was calculated properly  
  */
-void calcTrajectoryCurvature(MPCTrajectory &traj, int curvature_smoothing_num);
+bool calcTrajectoryCurvature(MPCTrajectory &traj, int curvature_smoothing_num);
 
 /**
  * @brief convert waypoints to MPCTrajectory
  * @param [in] path input waypoints
  * @param [out] mpc_traj converted traj
  */
-void convertWaypointsToMPCTraj(const autoware_msgs::Lane &path, MPCTrajectory &mpc_traj);
+// void convertWaypointsToMPCTraj(const autoware_msgs::Lane &path, MPCTrajectory &mpc_traj);
 
 /**
  * @brief convert waypoints to MPCTraj with interpolation
@@ -147,5 +150,11 @@ bool calcNearestPose(const MPCTrajectory &traj, const geometry_msgs::Pose &self_
  */
 bool calcNearestPoseInterp(const MPCTrajectory &traj, const geometry_msgs::Pose &self_pose, geometry_msgs::Pose &nearest_pose,
                            unsigned int &nearest_index, double &min_dist_error, double &nearest_yaw_error, double &nearest_time);
+
+
+void calculateRelativeTime(MPCTrajectory &traj);
+void convertWaypointsToMPCTraj(const autoware_msgs::Lane &path, MPCTrajectory &ref_traj);
+bool splineInterpolateConstantDistance(const double &width, MPCTrajectory &traj);
+bool linearInterpolateConstantDistance(const double &width, MPCTrajectory &traj);
 
 }; // namespace MPCUtils

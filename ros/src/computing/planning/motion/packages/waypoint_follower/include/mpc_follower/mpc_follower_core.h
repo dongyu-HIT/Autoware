@@ -217,6 +217,7 @@ private:
   ros::Publisher pub_debug_angvel_steer_;         //!< @brief publisher for debug info
   ros::Publisher pub_debug_angvel_cmd_ff_;        //!< @brief publisher for debug info
   ros::Publisher pub_debug_angvel_estimatetwist_; //!< @brief publisher for debug info
+  ros::Publisher pub_debug_curvature_;            //!< @brief publisher for debug info
 
   ros::Subscriber sub_estimate_twist_;         //!< @brief subscriber for /estimate_twist for debug
   geometry_msgs::TwistStamped estimate_twist_; //!< @brief received /estimate_twist for debug
@@ -231,4 +232,8 @@ private:
    * @brief callback for estimate twist for debug
    */
   void callbackEstimateTwist(const geometry_msgs::TwistStamped &msg) { estimate_twist_ = msg; }
+
+
+  ros::Publisher pub_marker_array_;
+  void publishMPCTrajectoryMarkerArray(const MPCTrajectory &traj);
 };

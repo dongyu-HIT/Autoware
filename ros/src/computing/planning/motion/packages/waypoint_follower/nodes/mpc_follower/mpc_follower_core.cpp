@@ -155,7 +155,9 @@ MPCFollower::MPCFollower()
     pub_debug_angvel_steer_ = pnh_.advertise<std_msgs::Float32>("debug/angvel_from_steer", 1);
     pub_debug_angvel_cmd_ff_ = pnh_.advertise<std_msgs::Float32>("debug/angvel_cmd_ff", 1);
     pub_debug_angvel_estimatetwist_ = pnh_.advertise<std_msgs::Float32>("debug/angvel_estimatetwist", 1);
+    pub_debug_curvature_ = pnh_.advertise<std_msgs::Float32>("debug/curvature", 1);
   }
+  pub_marker_array_ = pnh_.advertise<visualization_msgs::MarkerArray>("debug/test_traj", 1);
 };
 
 void MPCFollower::timerCallback(const ros::TimerEvent &te)
@@ -532,6 +534,10 @@ bool MPCFollower::calculateMPC(double &vel_cmd, double &acc_cmd, double &steer_c
     std_msgs::Float32 angvel_estimatetwist_msg; // estimate twist angular velocity
     angvel_estimatetwist_msg.data = estimate_twist_.twist.angular.z;
     pub_debug_angvel_estimatetwist_.publish(angvel_estimatetwist_msg);
+
+    std_msgs::Float32 curvature_msg; // estimate twist angular velocity
+    curvature_msg.data = mpc_resampled_ref_traj.k.at(0);
+    pub_debug_curvature_.publish(curvature_msg);
   }
 
   return true;
@@ -544,20 +550,31 @@ void MPCFollower::callbackRefPath(const autoware_msgs::Lane::ConstPtr &msg)
 
   MPCTrajectory traj;
 
-  /* calculate relative time */
-  std::vector<double> relative_time;
-  MPCUtils::calcPathRelativeTime(current_waypoints_, relative_time);
-  DEBUG_INFO("[MPC] path callback: relative_time.size() = %lu, front() = %f, back() = %f",
-             relative_time.size(), relative_time.front(), relative_time.back());
 
-  /* resampling */
-  MPCUtils::convertWaypointsToMPCTrajWithDistanceResample(current_waypoints_, relative_time, traj_resample_dist_, traj);
-  MPCUtils::convertEulerAngleToMonotonic(traj.yaw);
-  DEBUG_INFO("[MPC] path callback: resampled traj size() = %lu", traj.relative_time.size());
+
+  // ------------ FOR old ver ------------
+  /* calculate relative time */
+  // std::vector<double> relative_time;
+  // MPCUtils::calcPathRelativeTime(current_waypoints_, relative_time);
+  // DEBUG_INFO("[MPC] path callback: relative_time.size() = %lu, front() = %f, back() = %f",
+  //            relative_time.size(), relative_time.front(), relative_time.back());
+  // /* resampling */
+  // MPCUtils::convertWaypointsToMPCTrajWithDistanceResample(current_waypoints_, relative_time, traj_resample_dist_, traj);
+  // DEBUG_INFO("[MPC] path callback: resampled traj size() = %lu", traj.relative_time.size());
+
+
+  // ------------ TEST for spline interpolate ------------
+  MPCUtils::convertWaypointsToMPCTraj(current_waypoints_, traj);
+  if (!MPCUtils::splineInterpolateConstantDistance(traj_resample_dist_, traj))
+  {
+    ROS_WARN("[MPC] path interpolation failed. stop calculation for path.");
+    return;
+  }
 
   /* path smoothing */
   if (enable_path_smoothing_)
   {
+    MPCUtils::convertEulerAngleToMonotonic(traj.yaw);
     for (int i = 0; i < path_smoothing_times_; ++i)
     {
       if (!MoveAverageFilter::filt_vector(path_filter_moving_ave_num_, traj.x) ||
@@ -578,11 +595,10 @@ void MPCFollower::callbackRefPath(const autoware_msgs::Lane::ConstPtr &msg)
     MPCUtils::convertEulerAngleToMonotonic(traj.yaw);
   }
 
-  /* calculate curvature */
+  /* calculate curvature with smoothing */
   MPCUtils::calcTrajectoryCurvature(traj, curvature_smoothing_num_);
-  const double max_k = *max_element(traj.k.begin(), traj.k.end());
-  const double min_k = *min_element(traj.k.begin(), traj.k.end());
-  DEBUG_INFO("[MPC] path callback: trajectory curvature : max_k = %f, min_k = %f", max_k, min_k);
+  DEBUG_INFO("[MPC] path callback: trajectory curvature : max_k = %f, min_k = %f",
+             *max_element(traj.k.begin(), traj.k.end()), *min_element(traj.k.begin(), traj.k.end()));
 
   /* add end point with vel=0 on traj for mpc prediction */
   const double mpc_predict_time_length = (mpc_param_.prediction_horizon + 1) * mpc_param_.prediction_sampling_time;
@@ -594,7 +610,7 @@ void MPCFollower::callbackRefPath(const autoware_msgs::Lane::ConstPtr &msg)
   if (!traj.size())
   {
     ROS_ERROR("[MPC] path callback: trajectory size is undesired.");
-    DEBUG_INFO("size: x=%lu, y=%lu, z=%lu, yaw=%lu, v=%lu,k=%lu,t=%lu", traj.x.size(), traj.y.size(),
+    DEBUG_INFO("size: x=%lu, y=%lu, z=%lu, yaw=%lu, v=%lu, k=%lu, t=%lu", traj.x.size(), traj.y.size(),
                traj.z.size(), traj.yaw.size(), traj.vx.size(), traj.k.size(), traj.relative_time.size());
     return;
   }
@@ -605,6 +621,8 @@ void MPCFollower::callbackRefPath(const autoware_msgs::Lane::ConstPtr &msg)
   visualization_msgs::Marker markers;
   convertTrajToMarker(ref_traj_, markers, "ref_traj", 0.0, 0.5, 1.0, 0.05);
   pub_debug_filtered_traj_.publish(markers);
+
+  publishMPCTrajectoryMarkerArray(ref_traj_);
 };
 
 void MPCFollower::convertTrajToMarker(const MPCTrajectory &traj, visualization_msgs::Marker &marker,
@@ -615,7 +633,7 @@ void MPCFollower::convertTrajToMarker(const MPCTrajectory &traj, visualization_m
   marker.header.stamp = ros::Time();
   marker.ns = ns;
   marker.id = 0;
-  marker.type = visualization_msgs::Marker::LINE_STRIP;
+  marker.type = visualization_msgs::Marker::CUBE_LIST;
   marker.action = visualization_msgs::Marker::ADD;
   marker.scale.x = 0.15;
   marker.scale.y = 0.3;
@@ -633,6 +651,36 @@ void MPCFollower::convertTrajToMarker(const MPCTrajectory &traj, visualization_m
     marker.points.push_back(p);
   }
 }
+
+void MPCFollower::publishMPCTrajectoryMarkerArray(const MPCTrajectory &traj)
+{
+  
+  visualization_msgs::MarkerArray marker_array;
+  for (int i = 0; i < traj.size(); ++i)
+  {
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = current_waypoints_.header.frame_id;
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "test";
+    marker.id = i;
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.position.x = traj.x.at(i);
+    marker.pose.position.y = traj.y.at(i);
+    marker.pose.position.z = traj.z.at(i);
+    marker.pose.orientation = amathutils::getQuaternionFromYaw(traj.yaw.at(i));
+    marker.scale.x = 0.1;
+    marker.scale.y = 0.05;
+    marker.scale.z = 0.3;
+    marker.color.a = 0.9;
+    marker.color.r = 1.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+    marker_array.markers.push_back(marker);
+  }
+  pub_marker_array_.publish(marker_array);
+}
+
 
 void MPCFollower::callbackPose(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
